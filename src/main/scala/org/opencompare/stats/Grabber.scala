@@ -1,13 +1,15 @@
 package org.opencompare.stats
 
 import java.text.DateFormat
-import java.util
 import java.util.{Date, Locale}
+
+import org.opencompare.io.wikipedia.io.MediaWikiAPI
+import play.api.libs.json.{JsArray, JsValue}
 
 /**
  * Created by smangin on 7/23/15.
  *
- * Use to get all revision from a single wikipedia page
+ * Used to get all revisions from a single wikipedia page
  *
  */
 class Grabber (lang : String, title : String) {
@@ -16,11 +18,11 @@ class Grabber (lang : String, title : String) {
   private val api: MediaWikiAPI = new MediaWikiAPI("https", "wikipedia.org")
   val json = api.getRevisionFromTitle(lang, title)
 
-  def getRevIds(): util.List[String] = {
-    val revids: util.List[String] = new util.ArrayList();
+  def getRevIds(): List[String] = {
+    var revids: List[String] = List[String]()
     for (value: JsValue <- json) {
       var revid = value \ "revid"
-      revids.add(revid.toString)
+      revids :+ revid.toString
     }
     revids
   }
