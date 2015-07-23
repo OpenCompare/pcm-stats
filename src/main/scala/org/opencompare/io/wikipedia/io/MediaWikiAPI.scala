@@ -1,6 +1,6 @@
 package org.opencompare.io.wikipedia.io
 
-import play.api.libs.json.{JsString, Json}
+import play.api.libs.json.{JsValue, JsString, Json}
 
 import scalaj.http.Http
 
@@ -25,28 +25,20 @@ class MediaWikiAPI(
     title.replaceAll("\\s", "_")
   }
 
-  def getVersionFromTitle(language : String, title : String): String = {
-    //Example: https://en.wikipedia.org/w/api.php?action=query&format=json&prop=revisions&titles=Comparison_of_AMD_processors&rvprop=content
+  def getVersionFromTitle(language : String, title : String): Array[JsValue] = {
+    //Example: https://en.wikipedia.org/w/api.php?action=query&prop=revisions&format=json&rvprop=ids%7Ctimestamp%7Cuser%7Ccontent&rvdir=older&titles=Comparison_of_AMD_processor
     val result = Http(apiEndPoint(language)).params(
       "action" -> "query",
       "format" -> "json",
       "prop" -> "revisions",
       "titles" -> escapeTitle(title),
-      "rvprop" -> "content"
+      "rvprop" -> "ids|timestamp|user|content"
     ).asString.body
 
     val jsonResult = Json.parse(result)
-    val jsonWikitext = jsonResult \ "query" \ "pages" \\ "*"
-
-    if (jsonWikitext.nonEmpty) {
-      jsonWikitext.head.as[JsString].value
-      //      Json.stringify(jsonWikitext.head)
-      //        .replaceAll(Matcher.quoteReplacement("\\n"), "\n")
-      //        .replaceAll(Matcher.quoteReplacement("\\\""), "\"")
-    } else {
-      // TODO: Error
-      ""
-    }
+    val pages = jsonResult \ "query" \ "pages"
+    val revs = pages \\ "revisions"
+    revs.toArray
   }
 
   def getWikitextFromTitle(language : String, title : String): String = {

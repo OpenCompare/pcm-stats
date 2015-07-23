@@ -1,22 +1,23 @@
 package org.opencompare.stats;
 
-import com.opencsv.CSVReader;
-
 import java.io.*;
-import java.util.*;
+
+import static scala.collection.JavaConversions.seqAsJavaList;
 
 /**
  * Created by smangin on 7/23/15.
  */
 public class Launcher {
 
-    private Grabber grabber = new Grabber();
 
-    public void main(String[] args) throws IOException {
-        InputStream inputCSVStream = getClass().getResourceAsStream("/csv/Comparison_of_AMD_processors.csv");
-        CSVReader reader = new CSVReader(new InputStreamReader(inputCSVStream), '"', ',');
-        for (String[] line: reader.readAll()) {
-             Map<Date, String> result = grabber.getVersions("en", "Comparison_(grammar)");
+    public static void main(String[] args) throws IOException {
+        Launcher launcher = new Launcher();
+        InputStream input = launcher.getClass().getResourceAsStream("/list_of_PCMs.csv");
+        Grabber grabber = new Grabber("en", "Comparison_of_AMD_processors");
+        System.out.println(grabber.getRevIds());
+        for (String revid: grabber.getRevIds()) {
+            System.out.println(grabber.getDate(revid));
+            System.out.println(grabber.getAuthor(revid));
         }
 
     }
