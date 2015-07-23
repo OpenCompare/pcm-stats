@@ -24,6 +24,6 @@ public class Grabber {
     public Map<Date, String> getVersions(String lang, String title) {
         String result = api.getVersionFromTitle(lang, title);
         System.out.println(result);
-        return new HashMap<>();
+        return new HashMap<Date, String>();
     }
 }
