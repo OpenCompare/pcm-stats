@@ -4,11 +4,29 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>pcm-stats</groupId>
-    <artifactId>pcm-stats</artifactId>
+    <groupId>org.opencompare</groupId>
+    <artifactId>stats</artifactId>
     <version>1.0-SNAPSHOT</version>
 
     <dependencies>
+        <dependency>
+            <groupId>org.opencompare</groupId>
+            <artifactId>api-java</artifactId>
+            <version>0.4-SNAPSHOT</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.opencompare</groupId>
+            <artifactId>api-java-impl</artifactId>
+            <version>0.4-SNAPSHOT</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.opencompare.io</groupId>
+            <artifactId>io-wikipedia</artifactId>
+            <version>0.4-SNAPSHOT</version>
+        </dependency>
+
         <dependency>
             <groupId>com.opencsv</groupId>
             <artifactId>opencsv</artifactId>
