@@ -1,10 +1,6 @@
 package org.opencompare.stats;
 
-import scala.util.parsing.json.JSONObject;
-
 import java.io.*;
-
-import static scala.collection.JavaConversions.seqAsJavaList;
 
 /**
  * Created by smangin on 7/23/15.

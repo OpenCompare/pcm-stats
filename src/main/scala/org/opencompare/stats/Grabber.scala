@@ -4,10 +4,6 @@ import java.text.DateFormat
 import java.util
 import java.util.{Date, Locale}
 
-import org.opencompare.io.wikipedia.io.MediaWikiAPI
-import play.api.libs.json.JsValue
-
-import scala.collection.JavaConverters._
 /**
  * Created by smangin on 7/23/15.
  *
