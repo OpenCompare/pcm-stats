@@ -2,10 +2,7 @@ package org.opencompare.stats;
 
 import org.opencompare.io.wikipedia.io.MediaWikiAPI;
 
-import java.time.DateTimeException;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Created by smangin on 7/23/15.

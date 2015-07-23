@@ -1,7 +1,5 @@
 package org.opencompare.io.wikipedia.io
 
-import java.util.regex.Matcher
-
 import play.api.libs.json.{JsString, Json}
 
 import scalaj.http.Http
