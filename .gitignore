@@ -1,10 +1,10 @@
 target
-/.idea
-/*.iml
-/.idea_modules
-/.classpath
-/.project
-/.settings
+.idea
+*.iml
+.idea_modules
+.classpath
+.project
+.settings
 
 
     
