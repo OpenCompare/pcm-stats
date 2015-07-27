@@ -9,11 +9,16 @@ import play.api.libs.json.{JsNumber, JsObject, JsString}
  * Used to get all revisions from a single wikipedia page
  *
  */
-class Revision (lang : String, title : String) {
+class Revision (api : MediaWikiAPI, lang : String, title : String) {
 
 
-  private val api: MediaWikiAPI = new MediaWikiAPI("https", "wikipedia.org")
   private val revisions = api.getRevisionFromTitle(lang, title, 50)
+  def getTitle: String = {
+    title
+  }
+  def getLang: String = {
+    lang
+  }
 
   def getId(revision: JsObject): Int = {
     (revision \ "revid").as[JsNumber].value.toIntExact

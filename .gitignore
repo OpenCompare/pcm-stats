@@ -1,10 +1,8 @@
 target
+metrics
 .idea
 *.iml
 .idea_modules
 .classpath
 .project
 .settings
-
-
-    
