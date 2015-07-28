@@ -4,7 +4,7 @@ import java.io.{File, FileWriter}
 import java.util.Calendar
 
 import com.github.tototoshi.csv.{CSVReader, CSVWriter, DefaultCSVFormat, QUOTE_ALL}
-import org.opencompare.api.java.util.ComplexePCMElementComparator
+import org.opencompare.api.java.util.{DiffResult, ComplexePCMElementComparator}
 import org.opencompare.api.java.{PCM, PCMContainer}
 import org.opencompare.io.wikipedia.io.{MediaWikiAPI, WikiTextLoader, WikiTextTemplateProcessor}
 
@@ -88,8 +88,7 @@ object Launcher extends App {
     })
     writer.flush()
     writer.close()
-    val end = Calendar.getInstance().getTime
-    println((end.getTime - start.getTime)/60 + "min elapsed time")
+    println((Calendar.getInstance().getTime.getTime - start.getTime)/60 + "min elapsed time")
   }
 
   def getPCMMetrics(input : File, output : File) {
@@ -114,6 +113,8 @@ object Launcher extends App {
     )
     writer.writeRow(heading)
 
+    println("Pages to process : " + pages.size)
+    var remaining = pages.size
     // Parse
     pages.foreach(page => {
       // Local vars
@@ -121,19 +122,21 @@ object Launcher extends App {
       println("+ Page : " + title)
       var previousId : Int = 0
       var currentId : Int = 0
+      var currentContainer : Option[PCMContainer] = null
+      var currentPcm : PCM = null
+      var previousPcm : PCM = null
       var currentContainers : List[PCMContainer] = null
       var previousContainers : List[PCMContainer] = null
       var revisionsSize = 0
+      var wikitext = ""
+      var diff : DiffResult = null
 
       // Parse
       page._2.foreach(line => {
         val lang = line.get("Lang").get
         currentId = line.get("Id").get.toInt
-        var currentContainer : Option[PCMContainer] = null
-        var currentPcm : PCM = null
-        var previousPcm : PCM = null
         // Get the wikitext code
-        val wikitext = Source.fromFile(wikitextPath + title + "-" + currentId + ".wikitext").mkString
+        wikitext = Source.fromFile(wikitextPath + title + "-" + currentId + ".wikitext").mkString
         try {
           // Parse it throught wikipedia miner
           currentContainers = wikiLoader.mine(lang, wikitext, title).toList
@@ -143,12 +146,12 @@ object Launcher extends App {
             for (previousContainer <- previousContainers) {
               previousPcm = previousContainer.getPcm
               // Search for a matrix in the current page
-              currentContainer = currentContainers.find(container => container.getPcm.getName == previousContainer.getPcm.getName)
+              currentContainer = currentContainers.find(container => container.getPcm.getName == previousPcm.getName)
               // If the matrix exists in the current line
               if (currentContainer.isDefined) {
                 currentPcm = currentContainer.get.getPcm
                 // Treatment by comparing previous line with current one to populate previous container line
-                val diff = previousPcm.diff(currentPcm, new ComplexePCMElementComparator)
+                diff = previousPcm.diff(currentPcm, new ComplexePCMElementComparator)
                 writer.writeRow(List(
                   previousPcm.getName,
                   previousId,
@@ -186,10 +189,11 @@ object Launcher extends App {
       })
       writer.flush()
       println(" => " + revisionsSize + " revisions")
+      remaining = remaining - 1
+      println(remaining + " remaining pages ")
     })
     writer.close()
-    val end = Calendar.getInstance().getTime
-    println((end.getTime - start.getTime)/60 + "min elapsed time")
+    println((Calendar.getInstance().getTime.getTime - start.getTime)/60 + "min elapsed time")
   }
 
   def getWikitextMetrics(input : File): Unit = {
