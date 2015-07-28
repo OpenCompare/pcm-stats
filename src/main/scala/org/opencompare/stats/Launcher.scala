@@ -1,12 +1,14 @@
 package org.opencompare.stats
 
 import java.io.{File, FileWriter}
+import java.util.Calendar
 
 import com.github.tototoshi.csv.{CSVReader, CSVWriter, DefaultCSVFormat, QUOTE_ALL}
-import org.opencompare.api.java.PCMContainer
 import org.opencompare.api.java.util.ComplexePCMElementComparator
+import org.opencompare.api.java.{PCM, PCMContainer}
 import org.opencompare.io.wikipedia.io.{MediaWikiAPI, WikiTextLoader, WikiTextTemplateProcessor}
 
+import scala.collection.JavaConversions._
 import scala.io.Source
 
 /**
@@ -37,7 +39,8 @@ object Launcher extends App {
   val api: MediaWikiAPI = new MediaWikiAPI("https", "wikipedia.org")
   val wikiLoader = new WikiTextLoader(new WikiTextTemplateProcessor(api))
 
-  def getRevisions(input : File, output : File): Unit = {
+  def getRevisions(input : File, output : File) {
+    val start = Calendar.getInstance().getTime
     println("###################################          Get Revisions                 ##############################")
     // Stop if exists
     if (output.exists()) {
@@ -55,7 +58,6 @@ object Launcher extends App {
       "Lang",
       "Author"
     )
-    println("Heading is : " + heading)
     writer.writeRow(heading)
 
     // Parse wikipedia page list
@@ -86,9 +88,12 @@ object Launcher extends App {
     })
     writer.flush()
     writer.close()
+    val end = Calendar.getInstance().getTime
+    println((end.getTime - start.getTime)/60 + "min elapsed time")
   }
 
-  def getPCMMetrics(input : File, output : File): Unit = {
+  def getPCMMetrics(input : File, output : File) {
+    val start = Calendar.getInstance().getTime
     println("###################################        Get PCM metrics                 ##############################")
     val reader = CSVReader.open(input)(CustomCsvFormat)
     val pages = reader.allWithHeaders().groupBy(line => {
@@ -97,15 +102,16 @@ object Launcher extends App {
     val writer = CSVWriter.open(output)(CustomCsvFormat)
     // Heading
     val heading = List(
+      "Matrix",
       "Id",
       "PrevId",
+      "Nbmatrix",
       "NewFeatures",
       "DelFeatures",
       "NewProducts",
       "DelProducts",
       "ChangedCells"
     )
-    println("Heading is : " + heading)
     writer.writeRow(heading)
 
     // Parse
@@ -115,44 +121,75 @@ object Launcher extends App {
       println("+ Page : " + title)
       var previousId : Int = 0
       var currentId : Int = 0
-      var currentContainer : PCMContainer = null
-      var previousContainer : PCMContainer = null
+      var currentContainers : List[PCMContainer] = null
+      var previousContainers : List[PCMContainer] = null
       var revisionsSize = 0
 
       // Parse
       page._2.foreach(line => {
         val lang = line.get("Lang").get
         currentId = line.get("Id").get.toInt
-        print("\t- " + currentId + "\t-> ")
+        var currentContainer : Option[PCMContainer] = null
+        var currentPcm : PCM = null
+        var previousPcm : PCM = null
+        // Get the wikitext code
         val wikitext = Source.fromFile(wikitextPath + title + "-" + currentId + ".wikitext").mkString
         try {
-          currentContainer = wikiLoader.mine(lang, wikitext, title).get(0)
-          if (previousContainer != null) {
-            // Treatment by comparing previous line with current one to populate previous container line
-            val diff = previousContainer.getPcm.diff(currentContainer.getPcm, new ComplexePCMElementComparator)
-            writer.writeRow(List(
-              previousId,
-              currentId,
-              diff.getFeaturesOnlyInPCM1.size(),
-              diff.getFeaturesOnlyInPCM2.size(),
-              diff.getProductsOnlyInPCM1.size(),
-              diff.getProductsOnlyInPCM2.size(),
-              diff.getDifferingCells.size()
-            ))
-            writer.flush()
-            println("Done")
+          // Parse it throught wikipedia miner
+          currentContainers = wikiLoader.mine(lang, wikitext, title).toList
+          // If first line, go next
+          if (previousContainers != null) {
+            // Fir each matrix in the page
+            for (previousContainer <- previousContainers) {
+              previousPcm = previousContainer.getPcm
+              // Search for a matrix in the current page
+              currentContainer = currentContainers.find(container => container.getPcm.getName == previousContainer.getPcm.getName)
+              // If the matrix exists in the current line
+              if (currentContainer.isDefined) {
+                currentPcm = currentContainer.get.getPcm
+                // Treatment by comparing previous line with current one to populate previous container line
+                val diff = previousPcm.diff(currentPcm, new ComplexePCMElementComparator)
+                writer.writeRow(List(
+                  previousPcm.getName,
+                  previousId,
+                  currentId,
+                  previousContainers.size,
+                  diff.getFeaturesOnlyInPCM1.size(),
+                  diff.getFeaturesOnlyInPCM2.size(),
+                  diff.getProductsOnlyInPCM1.size(),
+                  diff.getProductsOnlyInPCM2.size(),
+                  diff.getDifferingCells.size()
+                ))
+              } else {
+                // Otherwize populate metrics with the new matrix properties
+                writer.writeRow(List(
+                  previousPcm.getName,
+                  previousId,
+                  currentId,
+                  previousContainers.size,
+                  previousPcm.getConcreteFeatures.size(),
+                  0,
+                  previousPcm.getProducts.size(),
+                  0,
+                  previousPcm.getProducts.size() * previousPcm.getConcreteFeatures.size()
+                ))
+              }
+            }
           }
           // After treatment
-          previousContainer = currentContainer
+          previousContainers = currentContainers
         } catch {
-          case e: Throwable => println(e)
+          case e: Throwable => Nil
         }
         previousId = currentId
         revisionsSize += 1
       })
-      writer.close()
+      writer.flush()
       println(" => " + revisionsSize + " revisions")
     })
+    writer.close()
+    val end = Calendar.getInstance().getTime
+    println((end.getTime - start.getTime)/60 + "min elapsed time")
   }
 
   def getWikitextMetrics(input : File): Unit = {
@@ -171,6 +208,6 @@ object Launcher extends App {
   // Then parse it to make metrics
   getPCMMetrics(outputRevisionsCsv, outputPCMMetrics)
 
-  // And parse wiitext to make metrics
+  // And parse wikitext to make metrics
   //getWikitextMetrics(outputRevisionsCsv)
 }

@@ -12,7 +12,7 @@ import play.api.libs.json.{JsNumber, JsObject, JsString}
 class Revision (api : MediaWikiAPI, lang : String, title : String) {
 
 
-  private val revisions = api.getRevisionFromTitle(lang, title, 50)
+  private val revisions = api.getRevisionFromTitle(lang, title, 5)
   def getTitle: String = {
     title
   }
