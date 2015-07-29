@@ -5,6 +5,7 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 import com.github.tototoshi.csv.{CSVReader, CSVWriter, DefaultCSVFormat, QUOTE_ALL}
+import org.apache.log4j.{Appender, FileAppender, Logger, SimpleLayout}
 import org.opencompare.api.java.util.{ComplexePCMElementComparator, DiffResult}
 import org.opencompare.api.java.{PCM, PCMContainer}
 import org.opencompare.io.wikipedia.io.{MediaWikiAPI, WikiTextLoader, WikiTextTemplateProcessor}
@@ -22,10 +23,16 @@ object CustomCsvFormat extends DefaultCSVFormat {
   override val treatEmptyLineAsNil = true
 }
 
-object Launcher extends App {
 
+
+object Launcher extends App {
+  // Time
   val cTime = LocalDateTime.now()
   val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+
+  // Parsers
+  val api: MediaWikiAPI = new MediaWikiAPI("https", "wikipedia.org")
+  val wikiLoader = new WikiTextLoader(new WikiTextTemplateProcessor(api))
 
   // Paths
   val path = "metrics/"
@@ -42,18 +49,20 @@ object Launcher extends App {
   val outputRevisionsCsv = new File(revisionsPath + "revisionsList.csv")
   val outputPCMMetrics = new File(pcmPath + cTime.format(formatter) + "_pcmMetrics.csv")
 
-  // Parsers
-  val api: MediaWikiAPI = new MediaWikiAPI("https", "wikipedia.org")
-  val wikiLoader = new WikiTextLoader(new WikiTextTemplateProcessor(api))
+  // Logger
+  var fh : Appender = null
+  fh = new FileAppender(new SimpleLayout(), path + "pcmMetrics.log")
 
   def getRevisions(input : File, output : File) {
-    println("###################################            Get Revisions               ##############################")
+    val logger = Logger.getLogger("revisions")
+    logger.addAppender(fh)
+    fh.setLayout(new SimpleLayout())
+    logger.info("Get Revisions")
     // Stop if exists
     if (output.exists()) {
-      println("Already done")
+      logger.info("Already done")
       return
     }
-    println("Starting ...")
     output.createNewFile()
     val writer = CSVWriter.open(output)(CustomCsvFormat)
     // Heading
@@ -68,10 +77,12 @@ object Launcher extends App {
 
     // Parse wikipedia page list
     val reader = CSVReader.open(input)(CustomCsvFormat)
-    reader.allWithHeaders().foreach(line => {
+    var done = 0
+    val pages = reader.allWithHeaders()
+    logger.info("Pages to process : " + pages.size)
+    pages.foreach(line => {
       val pageLang = line.get("Lang").get
       val pageTitle = line.get("Title").get
-      print(" > " + pageTitle)
       val revision = new Revision(api, pageLang, pageTitle)
       var revisionsSize = 0
       for (revid : Int <- revision.getIds) {
@@ -90,23 +101,28 @@ object Launcher extends App {
         wikiWriter.close()
         revisionsSize += 1
       }
-      println(" => " + revisionsSize + " revisions")
+      done += 1
+      logger.info(done + "/" + pages.size + " > " + pageTitle + " => " + revisionsSize + " revisions")
     })
     writer.flush()
     writer.close()
   }
 
   def getPCMMetrics(input : File, output : File) {
-    println("###################################           Get PCM metrics              ##############################")
+    val logger = Logger.getLogger("pcm_metrics")
+    logger.addAppender(fh)
+    fh.setLayout(new SimpleLayout())
+    logger.info("Get PCM metrics")
     // Stop if exists
     if (output.exists()) {
-      println("Already done")
+      logger.info("Already done")
       return
     }
-    println("Starting ...")
     output.createNewFile()
     val reader = CSVReader.open(input)(CustomCsvFormat)
-    val pages = reader.allWithHeaders().groupBy(line => {
+    val revisions = reader.allWithHeaders()
+    logger.info("Revisions to process : " + revisions.size)
+    val pages = revisions.groupBy(line => {
       line.get("Title").get
     })
     val writer = CSVWriter.open(output)(CustomCsvFormat)
@@ -126,12 +142,10 @@ object Launcher extends App {
     )
     writer.writeRow(heading)
 
-    println("Pages to process : " + pages.size)
-    var remaining = pages.size
+    var pageDone = 0
     pages.foreach(page => {
       // Local vars
       val title = page._1
-      println("+ Page : " + title)
       var previousId : Int = 0
       var currentId : Int = 0
       var currentContainer : Option[PCMContainer] = null
@@ -145,6 +159,7 @@ object Launcher extends App {
 
       // Sort by revision Id newer to older
       val content = page._2.sortBy(line => line.apply("Id").toInt).reverse
+      var revisionDone = 0
       page._2.foreach(line => {
         val lang = line.get("Lang").get
         currentId = line.get("Id").get.toInt
@@ -182,18 +197,18 @@ object Launcher extends App {
                   // If the matrix exists in the current line
                   currentPcm = currentContainer.get.getPcm
                   // Treatment by comparing previous line with current one to populate previous container line
-                  diff = previousPcm.diff(currentPcm, new ComplexePCMElementComparator)
+                  diff = currentPcm.diff(previousPcm, new ComplexePCMElementComparator)
                   writer.writeRow(List(
-                    previousPcm.getName,
-                    previousId,
+                    currentPcm.getName,
                     currentId,
-                    previousContainersSize,
+                    previousId,
                     currentContainersSize,
-                    previousContainersSize - currentContainersSize,
-                    diff.getFeaturesOnlyInPCM1.size(),
+                    previousContainersSize,
+                    currentContainersSize - previousContainersSize,
                     diff.getFeaturesOnlyInPCM2.size(),
-                    diff.getProductsOnlyInPCM1.size(),
+                    diff.getFeaturesOnlyInPCM1.size(),
                     diff.getProductsOnlyInPCM2.size(),
+                    diff.getProductsOnlyInPCM1.size(),
                     diff.getDifferingCells.size()
                   ))
                 } else {
@@ -215,21 +230,24 @@ object Launcher extends App {
                 }
               }
             }
-          } else {
-            println("Too many unnamed matrices in container")
+            revisionDone += 1
           }
           // The current container becomes the new matrix to diff
           previousContainers = currentContainers
         } catch {
-          case e: Throwable => println(e)
+          case e: Throwable => logger.error(e.toString)
         }
         previousId = currentId
         revisionsSize += 1
       })
       writer.flush()
-      println(" => " + revisionsSize + " revisions")
-      remaining = remaining - 1
-      println(remaining + " remaining pages ")
+      val log = pageDone + "/" + pages.size + "\t" + title + " => " + revisionDone + "/" + revisionsSize + " revisions"
+      if (revisionDone == revisionsSize) {
+        logger.info(log)
+      } else {
+        logger.warn(log)
+      }
+      pageDone += 1
     })
     writer.close()
   }
