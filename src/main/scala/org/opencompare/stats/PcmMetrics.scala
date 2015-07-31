@@ -1,12 +1,9 @@
 package org.opencompare.stats
 
-import java.io.File
-
-import com.github.tototoshi.csv.CSVWriter
 import org.apache.log4j.Logger
 import org.opencompare.api.java.util.{ComplexePCMElementComparator, DiffResult}
 import org.opencompare.api.java.{PCM, PCMContainer}
-import org.opencompare.io.wikipedia.io.{WikiTextTemplateProcessor, MediaWikiAPI, WikiTextLoader}
+import org.opencompare.io.wikipedia.io.{MediaWikiAPI, WikiTextLoader, WikiTextTemplateProcessor}
 
 import scala.collection.JavaConversions._
 import scala.io.Source
@@ -14,11 +11,11 @@ import scala.io.Source
 /**
  * Created by blacknight on 30/07/15.
  */
-class PcmMetrics(api : MediaWikiAPI, wikitextPath : String) extends Thread {
+class PcmMetrics(db : DataBase, api : MediaWikiAPI, wikitextPath : String) extends Thread {
 
   private val wikiLoader = new WikiTextLoader(new WikiTextTemplateProcessor(api))
 
-  def process(title : String, content : List[Map[String, String]], path : String, logger : Logger): Map[String, Int] = {
+  def process(title : String, content : List[Map[String, Any]], logger : Logger): Map[String, Int] = {
     var previousId : Int = 0
     var currentId : Int = 0
     var currentContainer : Option[PCMContainer] = null
@@ -31,31 +28,10 @@ class PcmMetrics(api : MediaWikiAPI, wikitextPath : String) extends Thread {
     var wikitext = ""
     var diff : DiffResult = null
 
-    val output = new File(path + title + ".csv")
-    if (output.exists()) {
-      logger.info(title + " => Already done")
-    }
-    val writer = CSVWriter.open(output)(new CustomCsvFormat)
-    // Heading
-    val heading = List(
-      "MatrixName",
-      "Id",
-      "PrevId",
-      "Nbmatrices",
-      "PrevNbmatrices",
-      "Changedmatrices",
-      "NewFeatures",
-      "DelFeatures",
-      "NewProducts",
-      "DelProducts",
-      "ChangedCells"
-    )
-    writer.writeRow(heading)
-
     // Sort by revision Id newer to older
     content.foreach(line => {
-      val lang = line.get("Lang").get
-      currentId = line.get("Id").get.toInt
+      val lang = line.get("Lang").get.toString
+      currentId = line.get("Id").get.asInstanceOf[Int]
       //try {
         // Get the wikitext code
         wikitext = Source.fromFile(wikitextPath + title + "-" + currentId + ".wikitext").mkString
@@ -90,35 +66,33 @@ class PcmMetrics(api : MediaWikiAPI, wikitextPath : String) extends Thread {
                 currentPcm = currentContainer.get.getPcm
                 // Treatment by comparing previous line with current one to populate previous container line
                 diff = currentPcm.diff(previousPcm, new ComplexePCMElementComparator)
-                writer.writeRow(List(
-                  currentPcm.getName,
-                  currentId,
-                  previousId,
-                  currentContainersSize,
-                  previousContainersSize,
-                  currentContainersSize - previousContainersSize,
-                  diff.getFeaturesOnlyInPCM2.size(),
-                  diff.getFeaturesOnlyInPCM1.size(),
-                  diff.getProductsOnlyInPCM2.size(),
-                  diff.getProductsOnlyInPCM1.size(),
-                  diff.getDifferingCells.size()
-                ))
+                db.statement.execute("insert into metrics values(" +
+                  currentId+", "+
+                  "'"+currentPcm.getName+"', "+
+                  previousId+", "+
+                  currentContainersSize+", "+
+                  previousContainersSize+", "+
+                  (currentContainersSize - previousContainersSize)+", "+
+                  diff.getFeaturesOnlyInPCM2.size()+", "+
+                  diff.getFeaturesOnlyInPCM1.size()+", "+
+                  diff.getProductsOnlyInPCM2.size()+", "+
+                  diff.getProductsOnlyInPCM1.size()+", "+
+                  diff.getDifferingCells.size()+")")
               } else {
                 // Otherwize populate metrics with the new matrix properties
                 // FIXME : find a better way to shwo the difference
-                writer.writeRow(List(
-                  previousPcm.getName,
-                  previousId,
-                  currentId,
-                  previousContainersSize,
-                  currentContainersSize,
-                  -1,
-                  0,
-                  0,
-                  0,
-                  0,
-                  0
-                ))
+                db.statement.execute("insert into metrics values(" +
+                  previousId+", "+
+                  "'"+previousPcm.getName+"', "+
+                  currentId+", "+
+                  previousContainersSize+", "+
+                  previousContainersSize+", "+
+                  -1+", "+
+                  0+", "+
+                  0+", "+
+                  0+", "+
+                  0+", "+
+                  0+")")
               }
             }
           }
@@ -131,7 +105,6 @@ class PcmMetrics(api : MediaWikiAPI, wikitextPath : String) extends Thread {
       //}
       previousId = currentId
     })
-    writer.close()
     Map[String, Int](("revisionsDone", revisionsDone), ("revisionsSize", revisionsSize))
   }
 
