@@ -1,6 +1,7 @@
 package org.opencompare.stats
 
 import java.io.{File, FileWriter}
+import java.sql.{Statement, SQLException, Connection, DriverManager}
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
@@ -34,7 +35,27 @@ object Launcher extends App {
   val inputPageList = new File("src/main/resources/list_of_PCMs.csv")
   val outputRevisionsCsv = new File(revisionsPath + "revisionsList.csv")
 
-  def getRevisions(input : File, output : File) {
+  def getConnection(): Statement = {
+
+    // load the sqlite-JDBC driver using the current class loader
+    Class.forName("org.sqlite.JDBC");
+
+    var connection : Connection = null;
+    try {
+      // create a database connection
+      connection = DriverManager.getConnection("jdbc:sqlite:sample.db");
+      val statement = connection.createStatement();
+      statement.setQueryTimeout(30);  // set timeout to 30 sec.
+       }
+    catch {
+      case e : SQLException => {
+      // if the error message is "out of memory",
+      // it probably means no database file is found
+      println(e.getMessage());
+    }
+  }
+
+  def getRevisions(input : File, output : File, grouped : Int = 10) {
     val logger = Logger.getLogger("revisions")
     logger.addAppender(fh)
     logger.info("Get Revisions")
@@ -60,46 +81,42 @@ object Launcher extends App {
     val reader = CSVReader.open(input)(new CustomCsvFormat)
     var done = synchronized(1)
     val pages = reader.allWithHeaders()
+    val groups = pages.grouped(grouped).toList // Performance issue hack
     var pagesSize = pages.size
     logger.info("Nb. pages: " + pages.size)
     val groupThread = new ThreadGroup("revisions")
-    pages.foreach(line => {
-      val pageLang = line.get("Lang").get
-      val pageTitle = line.get("Title").get
+    groups.foreach(group => {
+      var pageTitle = group.head.get("Title").get
       val thread = new Thread(groupThread, pageTitle) {
         override def run() {
-          try {
-            // your custom behavior here
-            val revision = new Revision(api, pageLang, pageTitle)
-            var revisionsSize = revision.getIds().size
-            for (revid: Int <- revision.getIds()) {
-              writer.writeRow(List(
-                revision.getTitle,
-                revid,
-                revision.getDate(revid).get,
-                revision.getLang,
-                revision.getAuthor(revid)
-              ))
-              // Save wikitext
-              val wikiWriter = new FileWriter(new File(wikitextPath + revision.getTitle + "-" + revid + ".wikitext"))
-              wikiWriter.write(revision.getWikitext(revid))
-              wikiWriter.close()
-            }
-            logger.info(done + "/" + pagesSize + "\t[" + revisionsSize + " rev." + "]\t" + pageTitle)
-            done += 1
-          } catch {
-            case e: Throwable => {
-              logger.fatal(pageTitle + " => " + e)
-              println("Restart thread " + Thread.currentThread().getName)
-              Thread.currentThread().interrupt()
-              println(Thread.currentThread().getState)
-              Thread.currentThread().stop()
-              while (!Thread.currentThread().isInterrupted) {
-                println(Thread.currentThread().getState)
+            group.foreach(line => {
+              val pageLang = line.get("Lang").get
+              pageTitle = line.get("Title").get
+              try {
+                // your custom behavior here
+                val revision = new Revision(api, pageLang, pageTitle)
+                var revisionsSize = revision.getIds().size
+                for (revid: Int <- revision.getIds()) {
+                  writer.writeRow(List(
+                    revision.getTitle,
+                    revid,
+                    revision.getDate(revid).get,
+                    revision.getLang,
+                    revision.getAuthor(revid)
+                  ))
+                  // Save wikitext
+                  val wikiWriter = new FileWriter(new File(wikitextPath + revision.getTitle + "-" + revid + ".wikitext"))
+                  wikiWriter.write(revision.getWikitext(revid))
+                  wikiWriter.close()
+                }
+                logger.info(done + "/" + pagesSize + "\t[" + revisionsSize + " rev." + "]\t" + pageTitle)
+                done += 1
+              } catch {
+                case e: Throwable => {
+                  logger.fatal(pageTitle + " => " + e)
+                }
               }
-              Thread.currentThread().start()
-            }
-          }
+            })
         }
       }
       thread.join()

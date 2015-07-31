@@ -55,6 +55,11 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <dependency>
+            <groupId>org.xerial</groupId>
+            <artifactId>sqlite-jdbc</artifactId>
+            <version>3.7.2</version>
+        </dependency>
     </dependencies>
     <build>
         <plugins>
@@ -70,9 +75,6 @@
                         </goals>
                     </execution>
                 </executions>
-                <configuration>
-                    <fork>false</fork>
-                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
