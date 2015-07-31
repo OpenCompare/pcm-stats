@@ -1,6 +1,7 @@
 package org.opencompare.stats
 
 import java.io.{File, FileWriter}
+import java.sql.SQLException
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
@@ -52,10 +53,16 @@ object Launcher extends App {
                 // your custom behavior here
                 val revision = new Revision(api, pageLang, pageTitle)
                 var revisionsSize = revision.getIds().size
-                for (revid: Int <- revision.getIds()) {
-                  val sql : String = "insert into revisions values("+revid+", "+ "'"+revision.getTitle(revid)+"', "+ "'"+revision.getDate(revid).get+"', "+ "'"+revision.getLang(revid)+"', "+ "'"+revision.getAuthor(revid)+"')"
-                  println(sql)
-                  db.statement.execute(sql)
+                for (revid : Int <- revision.getIds()) {
+                  val sql = "insert into revisions values(" + revid + ", " + "'" + revision.getTitle.replaceAllLiterally("'", "\'") + "', " + "'" + revision.getDate(revid).get + "', " + "'" + revision.getLang + "', " + "'" + revision.getAuthor(revid) + "')"
+                  try {
+                    db.syncExecute(sql)
+                  } catch {
+                    case e : SQLException => {
+                      e.printStackTrace()
+                      println(sql)
+                    }
+                  }
                   // Save wikitext
                   val wikiWriter = new FileWriter(new File(wikitextPath + revision.getTitle + "-" + revid + ".wikitext"))
                   wikiWriter.write(revision.getWikitext(revid))

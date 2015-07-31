@@ -1,29 +1,32 @@
 package org.opencompare.stats
 
-import java.sql.DriverManager
+import java.io.File
+
+import com.almworks.sqlite4java._
 
 /**
  * Created by blacknight on 31/07/15.
  */
 class DataBase(path : String) {
 
-  Class.forName("org.sqlite.JDBC")
   // load the sqlite-JDBC driver using the current class loader
-  val connection = DriverManager.getConnection("jdbc:sqlite:" + path)
-  connection.setAutoCommit(true)
+  private val connection = new SQLiteConnection(new File(path))
+  connection.open(true)
+  private val queue = new SQLiteQueue(new File(path))
+  queue.start()
+  //val connection = DriverManager.getConnection("jdbc:sqlite:" + path)
 
   // create the schema
-  val statement = connection.createStatement()
-  statement.execute("drop table if exists revisions")
-  statement.execute("drop table if exists metrics")
-  statement.execute("create table revisions (" + List(
+  connection.exec("drop table if exists revisions")
+  connection.exec("drop table if exists metrics")
+  connection.exec("create table revisions (" + List(
     "id LONG PRIMARY KEY",
     "title TEXT",
     "date DATE",
     "lang TEXT",
     "author TEXT"
   ).mkString(", ") + ")")
-  statement.execute("create table metrics (" + List(
+  connection.exec("create table metrics (" + List(
     "id LONG PRIMARY KEY",
     "pageId LONG REFERENCES metrics(id) ON UPDATE CASCADE",
     "name TEXT",
@@ -39,15 +42,31 @@ class DataBase(path : String) {
   ).mkString(", ") + ")")
 
   def getRevisions(): List[Map[String, Any]] = {
-    val objects = List()
-    val result = statement.executeQuery("SELECT * FROM revisions")
-    while (result.next()) {
-      objects ++ Map(
-        ("title", result.getString("title")),
-        ("id", result.getInt("id"))
-      )
+    val job = new SQLiteJob[List[Map[String, Any]]]() {
+      protected def job(connection : SQLiteConnection): List[Map[String, Any]] = {
+        // this method is called from database thread and passed the connection
+        val objects = List()
+        val result = connection.prepare("SELECT id, title FROM revisions")
+        while (result.step()) {
+          objects ++ Map(
+            ("id", result.columnInt(0)),
+            ("title", result.columnString(1))
+          )
+        }
+        objects
+      }
     }
-    objects
+    queue.execute[List[Map[String, Any]], SQLiteJob[List[Map[String, Any]]]](job).complete()
+  }
+
+  def syncExecute(sql : String): Any = {
+    val job = new SQLiteJob[Any]() {
+      protected def job(connection : SQLiteConnection): Unit = {
+        // this method is called from database thread and passed the connection
+        connection.exec(sql)
+      }
+    }
+    queue.execute[Any, SQLiteJob[Any]](job).complete()
   }
 
 }

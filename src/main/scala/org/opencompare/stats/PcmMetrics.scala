@@ -66,7 +66,7 @@ class PcmMetrics(db : DataBase, api : MediaWikiAPI, wikitextPath : String) exten
                 currentPcm = currentContainer.get.getPcm
                 // Treatment by comparing previous line with current one to populate previous container line
                 diff = currentPcm.diff(previousPcm, new ComplexePCMElementComparator)
-                db.statement.execute("insert into metrics values(" +
+                db.syncExecute("insert into metrics values(" +
                   currentId+", "+
                   "'"+currentPcm.getName+"', "+
                   previousId+", "+
@@ -81,7 +81,7 @@ class PcmMetrics(db : DataBase, api : MediaWikiAPI, wikitextPath : String) exten
               } else {
                 // Otherwize populate metrics with the new matrix properties
                 // FIXME : find a better way to shwo the difference
-                db.statement.execute("insert into metrics values(" +
+                db.syncExecute("insert into metrics values(" +
                   previousId+", "+
                   "'"+previousPcm.getName+"', "+
                   currentId+", "+
