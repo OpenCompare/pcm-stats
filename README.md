@@ -5,9 +5,9 @@
 ### Grab wikitext from page revisions
 
 Due to performance issues, it's preferable to add these options to the JVM (see http://www.oracle.com/technetwork/java/javase/tech/vmoptions-jsp-140102.html for further explaination)
- - -Xmx4096m
+ - -Xmx5120m
  - -XX:-UseParallelOldGC
- - -XX:InitiatingHeapOccupancyPercent=0
+ - -XX:InitiatingHeapOccupancyPercent=10
 
 ### Parse the wikitext to make metrics on matrix evolution
 
