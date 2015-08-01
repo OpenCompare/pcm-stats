@@ -29,9 +29,9 @@ class PcmMetrics(db : DataBase, api : MediaWikiAPI, wikitextPath : String) exten
     var diff : DiffResult = null
 
     // Sort by revision Id newer to older
-    content.foreach(line => {
-      val lang = line.get("Lang").get.toString
-      currentId = line.get("Id").get.asInstanceOf[Int]
+    content.sortBy(line => line.apply("id").asInstanceOf[Int]).reverse.foreach(line => {
+      val lang = line.get("lang").get.toString
+      currentId = line.get("id").get.asInstanceOf[Int]
       //try {
         // Get the wikitext code
         wikitext = Source.fromFile(wikitextPath + title + "-" + currentId + ".wikitext").mkString
@@ -68,7 +68,7 @@ class PcmMetrics(db : DataBase, api : MediaWikiAPI, wikitextPath : String) exten
                 diff = currentPcm.diff(previousPcm, new ComplexePCMElementComparator)
                 db.syncExecute("insert into metrics values(" +
                   currentId+", "+
-                  "'"+currentPcm.getName+"', "+
+                  "'"+currentPcm.getName.replace("'", "")+"', "+
                   previousId+", "+
                   currentContainersSize+", "+
                   previousContainersSize+", "+
@@ -78,21 +78,21 @@ class PcmMetrics(db : DataBase, api : MediaWikiAPI, wikitextPath : String) exten
                   diff.getProductsOnlyInPCM2.size()+", "+
                   diff.getProductsOnlyInPCM1.size()+", "+
                   diff.getDifferingCells.size()+")")
-              } else {
-                // Otherwize populate metrics with the new matrix properties
-                // FIXME : find a better way to shwo the difference
-                db.syncExecute("insert into metrics values(" +
-                  previousId+", "+
-                  "\""+previousPcm.getName+"\", "+
-                  currentId+", "+
-                  previousContainersSize+", "+
-                  previousContainersSize+", "+
-                  -1+", "+
-                  0+", "+
-                  0+", "+
-                  0+", "+
-                  0+", "+
-                  0+")")
+              //} else {
+              //  // Otherwize populate metrics with the new matrix properties
+              //  // FIXME : find a better way to shwo the difference
+              //  db.syncExecute("insert into metrics values(" +
+              //    currentId+", "+
+              //    "'"+previousPcm.getName.replace("'", "")+"', "+
+              //    previousId+", "+
+              //    currentContainersSize+", "+
+              //    previousContainersSize+", "+
+              //    -1+", "+
+              //    0+", "+
+              //    0+", "+
+              //    0+", "+
+              //    0+", "+
+              //    0+")")
               }
             }
           }
