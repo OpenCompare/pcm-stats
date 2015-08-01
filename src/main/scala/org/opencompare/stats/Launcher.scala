@@ -54,7 +54,7 @@ object Launcher extends App {
                 val revision = new Revision(api, pageLang, pageTitle)
                 var revisionsSize = revision.getIds().size
                 for (revid : Int <- revision.getIds()) {
-                  val sql = "insert into revisions values(" + revid + ", " + "'" + revision.getTitle.replaceAllLiterally("'", "\'") + "', " + "'" + revision.getDate(revid).get + "', " + "'" + revision.getLang + "', " + "'" + revision.getAuthor(revid) + "')"
+                  val sql = "insert into revisions values(" + revid + ", " + "\"" + revision.getTitle + "\", " + "\"" + revision.getDate(revid).get + "\", " + "\"" + revision.getLang + "\", " + "\"" + revision.getAuthor(revid) + "\")"
                   try {
                     db.syncExecute(sql)
                   } catch {

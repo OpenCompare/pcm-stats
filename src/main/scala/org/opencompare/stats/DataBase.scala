@@ -14,7 +14,6 @@ class DataBase(path : String) {
   connection.open(true)
   private val queue = new SQLiteQueue(new File(path))
   queue.start()
-  //val connection = DriverManager.getConnection("jdbc:sqlite:" + path)
 
   // create the schema
   connection.exec("drop table if exists revisions")
@@ -28,7 +27,6 @@ class DataBase(path : String) {
   ).mkString(", ") + ")")
   connection.exec("create table metrics (" + List(
     "id LONG PRIMARY KEY",
-    "pageId LONG REFERENCES metrics(id) ON UPDATE CASCADE",
     "name TEXT",
     "compareToId LONG REFERENCES revisions(id) ON UPDATE CASCADE",
     "nbMatrices INTEGER",
@@ -63,10 +61,17 @@ class DataBase(path : String) {
     val job = new SQLiteJob[Any]() {
       protected def job(connection : SQLiteConnection): Unit = {
         // this method is called from database thread and passed the connection
-        connection.exec(sql)
+        try {
+          connection.exec(sql)
+        } catch {
+          case _ : SQLiteException => {
+            connection.prepare(sql)
+          }
+        }
       }
     }
-    queue.execute[Any, SQLiteJob[Any]](job).complete()
+    // FIXME: Create a method that return a .complete() leads to several issues
+    queue.execute[Any, SQLiteJob[Any]](job)
   }
 
 }

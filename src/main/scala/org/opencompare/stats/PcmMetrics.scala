@@ -83,7 +83,7 @@ class PcmMetrics(db : DataBase, api : MediaWikiAPI, wikitextPath : String) exten
                 // FIXME : find a better way to shwo the difference
                 db.syncExecute("insert into metrics values(" +
                   previousId+", "+
-                  "'"+previousPcm.getName+"', "+
+                  "\""+previousPcm.getName+"\", "+
                   currentId+", "+
                   previousContainersSize+", "+
                   previousContainersSize+", "+
