@@ -32,7 +32,7 @@ class MetricsGenerator(db : DataBase, api : MediaWikiAPI, wikitextPath : String)
     content.sortBy(line => line.apply("id").asInstanceOf[Int]).reverse.foreach(line => {
       val lang = line.get("lang").get.toString
       currentId = line.get("id").get.asInstanceOf[Int]
-      //try {
+      try {
         // Get the wikitext code
         wikitext = Source.fromFile(wikitextPath + title + "-" + currentId + ".wikitext").mkString
         // Parse it through wikipedia miner
@@ -78,7 +78,8 @@ class MetricsGenerator(db : DataBase, api : MediaWikiAPI, wikitextPath : String)
                   diff.getProductsOnlyInPCM2.size()+", "+
                   diff.getProductsOnlyInPCM1.size()+", "+
                   diff.getDifferingCells.size()+")")
-              //} else {
+              } else {
+                logger.error(previousPcm.getName + "[" + currentId + "] => not found in revision '" + previousId + "'")
               //  // Otherwize populate metrics with the new matrix properties
               //  // FIXME : find a better way to shwo the difference
               //  db.syncExecute("insert into metrics values(" +
@@ -100,9 +101,9 @@ class MetricsGenerator(db : DataBase, api : MediaWikiAPI, wikitextPath : String)
         }
         // The current container becomes the new matrix to diff
         previousContainers = currentContainers
-      //} catch {
-      //  case e: Throwable => logger.error(e.toString)
-      //}
+      } catch {
+        case e: Exception => logger.error(title + "[" + currentId + "] =>" + e)
+      }
       previousId = currentId
     })
     Map[String, Int](("revisionsDone", revisionsDone), ("revisionsSize", revisionsSize))

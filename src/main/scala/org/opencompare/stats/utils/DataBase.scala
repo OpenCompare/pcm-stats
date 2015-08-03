@@ -22,8 +22,7 @@ class DataBase(path : String) {
     "title TEXT",
     "date DATE",
     "lang TEXT",
-    "author TEXT",
-    "CONSTRAINT pk PRIMARY KEY (id, title, lang)"
+    "author TEXT"
   )
   val metricModel =List(
     "id LONG REFERENCES revisions(id) ON UPDATE CASCADE",
@@ -36,8 +35,7 @@ class DataBase(path : String) {
     "delFeatures INTEGER",
     "newProducts INTEGER",
     "delProducts INTEGER",
-    "changedCells INTEGER",
-    "CONSTRAINT pk PRIMARY KEY (id, name, compareToId)"
+    "changedCells INTEGER"
   )
 
   // create the schema
