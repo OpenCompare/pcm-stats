@@ -9,7 +9,7 @@ import scala.collection.JavaConversions._
 import scala.io.Source
 
 /**
- * Created by blacknight on 30/07/15.
+ * Created by smangin on 30/07/15.
  */
 class MetricsGenerator(db : DataBase, api : MediaWikiAPI, wikitextPath : String) extends Thread {
 

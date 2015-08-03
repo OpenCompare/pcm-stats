@@ -7,7 +7,7 @@ import com.almworks.sqlite4java._
 import scala.collection.mutable.ListBuffer
 
 /**
- * Created by blacknight on 31/07/15.
+ * Created by smangin on 31/07/15.
  */
 class DataBase(path : String) {
 

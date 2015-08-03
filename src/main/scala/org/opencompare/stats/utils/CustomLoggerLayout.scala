@@ -7,7 +7,7 @@ import org.apache.log4j.spi.LoggingEvent
 import org.apache.log4j.{Layout, SimpleLayout}
 
 /**
- * Created by blacknight on 03/08/15.
+ * Created by smangin on 03/08/15.
  */
 class CustomLoggerLayout extends SimpleLayout {
 

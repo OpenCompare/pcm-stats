@@ -9,7 +9,7 @@ import org.opencompare.stats.launchers.{Metrics, Revisions}
 import org.opencompare.stats.utils.{CustomLoggerLayout, DataBase}
 
 /**
- * Created by blacknight on 03/08/15.
+ * Created by smangin on 03/08/15.
  */
 object Launcher extends App {
 
@@ -29,7 +29,7 @@ object Launcher extends App {
   metrics_logger.addAppender(fh)
 
   // Parser
-  val api: MediaWikiAPI = synchronized(new MediaWikiAPI("https", "wikipedia.org"))
+  val api = synchronized(new MediaWikiAPI("https", "wikipedia.org"))
   // Database
   val db = new DataBase(path + cTime.format(formatter) +".db")
 
