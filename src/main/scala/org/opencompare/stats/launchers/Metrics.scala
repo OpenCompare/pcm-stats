@@ -2,11 +2,14 @@ package org.opencompare.stats.launchers
 
 import java.io.File
 
-import org.apache.log4j.Logger
+import org.apache.log4j.{FileAppender, Logger}
 import org.opencompare.io.wikipedia.io.MediaWikiAPI
-import org.opencompare.stats.utils.{DataBase, MetricsGenerator}
+import org.opencompare.stats.utils.{DataBase, MetricsComparator}
 
-class Metrics(api : MediaWikiAPI, db : DataBase, time : String, wikitextPath : String, logger : Logger) {
+class Metrics(api : MediaWikiAPI, db : DataBase, time : String, wikitextPath : String, appender : FileAppender) {
+
+  private val logger = Logger.getLogger("metrics")
+  logger.addAppender(appender)
 
   def start(): Unit = {
     if (new File(wikitextPath).exists()) {
@@ -23,12 +26,12 @@ class Metrics(api : MediaWikiAPI, db : DataBase, time : String, wikitextPath : S
       pages.foreach(page => {
         val title = page._1.toString
         val content = synchronized(page._2)
-        val metrics = new MetricsGenerator(db, api, wikitextPath)
+        val metrics = new MetricsComparator(db, api, wikitextPath, appender)
         val thread = new Thread(groupThread, title) {
           override def run() {
             try {
               // your custom behavior here
-              val result: Map[String, Int] = metrics.process(title, content, logger)
+              val result: Map[String, Int] = metrics.process(title, content)
               val log = pageDone + "/" + pagesSize + "\t[" + result.apply("revisionsDone") + "/" + result.apply("revisionsSize") + "\trev.]\t" + title
               if (result.apply("revisionsDone") == result.apply("revisionsSize")) {
                 logger.info(log)
@@ -39,7 +42,7 @@ class Metrics(api : MediaWikiAPI, db : DataBase, time : String, wikitextPath : S
               revisionDone += result.apply("revisionsDone")
             } catch {
               case e: Exception => {
-                logger.fatal(title + " => " + e)
+                logger.error(title + " => " + e.getStackTrace)
               }
             }
           }

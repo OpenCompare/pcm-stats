@@ -3,14 +3,18 @@ package org.opencompare.stats.launchers
 import java.io.{File, FileWriter}
 
 import com.github.tototoshi.csv.CSVReader
-import org.apache.log4j.Logger
+import org.apache.log4j.{FileAppender, Logger}
 import org.opencompare.io.wikipedia.io.MediaWikiAPI
 import org.opencompare.stats.utils.{CustomCsvFormat, DataBase, RevisionsParser}
 
-class Revisions(api : MediaWikiAPI, db : DataBase, time : String, wikitextPath : String, logger : Logger) {
+class Revisions(api : MediaWikiAPI, db : DataBase, time : String, wikitextPath : String, appender : FileAppender) {
 
   // File configurations
   private val inputPageList = new File("src/main/resources/list_of_PCMs.csv")
+  private val logger = Logger.getLogger("revisions")
+  private val database_logger = Logger.getLogger("revisions.database")
+  logger.addAppender(appender)
+  database_logger.addAppender(appender)
 
   def start() {
     if (!new File(wikitextPath).exists()) {
@@ -36,9 +40,15 @@ class Revisions(api : MediaWikiAPI, db : DataBase, time : String, wikitextPath :
               pageTitle = line.get("Title").get
               try {
                 // your custom behavior here
-                val revision = new RevisionsParser(api, pageLang, pageTitle)
+                val revision = new RevisionsParser(api, pageLang, pageTitle, "older")
                 revisionsSize += revision.getIds().size
                 for (revid: Int <- revision.getIds()) {
+                  // To prevent from matrix deletion then addition,  delete the parentid from the database (it should be here because of the older to newer sorting)
+                  if (revision.isUndo(revid)) {
+                    val parentId = revision.getParentId(revid)
+                    logger.debug(pageTitle + " => '" + revid + "' is an undo revision of '" + parentId + "'")
+                    val sql = "delete from revisions where id=" + parentId
+                  }
                   val sql = "insert into revisions values(" + revid + ", " + "\"" + pageTitle.replaceAll("\"", "") + "\", " + "\"" + revision.getDate(revid).get + "\", " + "\"" + pageLang + "\", " + "\"" + revision.getAuthor(revid).replaceAll("\"", "") + "\")"
                   try {
                     db.syncExecute(sql)
@@ -49,15 +59,15 @@ class Revisions(api : MediaWikiAPI, db : DataBase, time : String, wikitextPath :
                     revisionsDone += 1
                   } catch {
                     case e: Exception => {
-                      logger.fatal(pageTitle + " => " + e)
-                      logger.fatal(sql)
+                      database_logger.error(pageTitle + " => " + e.getStackTrace)
+                      database_logger.error("SQL command => " + sql)
                     }
                   }
                 }
                 pagesDone += 1
                 logger.info(pagesDone + "/" + pagesSize + "\t[" + revision.getIds().size + " rev." + "]\t" + pageTitle)
               } catch {
-                case e: Exception => logger.fatal(pageTitle + " => " + e)
+                case e: Exception => logger.error(pageTitle + " => " + e.getStackTrace)
               }
             })
           }

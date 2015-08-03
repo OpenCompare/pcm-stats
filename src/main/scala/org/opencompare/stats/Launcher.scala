@@ -33,8 +33,8 @@ object Launcher extends App {
   // Database
   val db = new DataBase(path + cTime.format(formatter) +".db")
 
-  val revisions = new Revisions(api, db, cTime.format(formatter), wikitextPath, revisions_logger)
-  val metrics = new Metrics(api, db, cTime.format(formatter), wikitextPath, metrics_logger)
+  val revisions = new Revisions(api, db, cTime.format(formatter), wikitextPath, fh)
+  val metrics = new Metrics(api, db, cTime.format(formatter), wikitextPath, fh)
   logger.info("Launcher starts the revision process...")
   revisions.start()
   logger.info("Launcher starts the metrics process...")
