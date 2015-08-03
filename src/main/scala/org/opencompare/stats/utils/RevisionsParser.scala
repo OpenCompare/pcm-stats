@@ -14,13 +14,6 @@ class RevisionsParser (api : MediaWikiAPI, lang : String, title : String) {
 
   private val revisions = api.getRevisionFromTitle(lang, title)
 
-  def getTitle: String = {
-    title
-  }
-  def getLang: String = {
-    lang
-  }
-
   def getId(revision: JsObject): Int = {
     (revision \ "revid").as[JsNumber].value.toIntExact
   }

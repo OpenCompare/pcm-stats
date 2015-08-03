@@ -17,33 +17,37 @@ class DataBase(path : String) {
   private val queue = new SQLiteQueue(new File(path))
   queue.start()
 
+  val revisionModel = List(
+    "id LONG PRIMARY KEY",
+    "title TEXT",
+    "date DATE",
+    "lang TEXT",
+    "author TEXT",
+    "CONSTRAINT pk PRIMARY KEY (id, title, lang)"
+  )
+  val metricModel =List(
+    "id LONG REFERENCES revisions(id) ON UPDATE CASCADE",
+    "name TEXT",
+    "compareToId LONG REFERENCES revisions(id) ON UPDATE CASCADE",
+    "nbMatrices INTEGER",
+    "prevNbMatrices INTEGER",
+    "changedMatrices INTEGER",
+    "newFeatures INTEGER",
+    "delFeatures INTEGER",
+    "newProducts INTEGER",
+    "delProducts INTEGER",
+    "changedCells INTEGER",
+    "CONSTRAINT pk PRIMARY KEY (id, name, compareToId)"
+  )
+
   // create the schema
   def createTableRevisions() {
     connection.exec("drop table if exists revisions")
-    connection.exec("create table revisions (" + List(
-      "id LONG PRIMARY KEY",
-      "title TEXT",
-      "date DATE",
-      "lang TEXT",
-      "author TEXT"
-    ).mkString(", ") + ")")
+    connection.exec("create table revisions (" + revisionModel.mkString(", ") + ")")
   }
   def createTableMetrics() {
     connection.exec("drop table if exists metrics")
-    connection.exec("create table metrics (" + List(
-      "id LONG REFERENCES revisions(id) ON UPDATE CASCADE",
-      "name TEXT",
-      "compareToId LONG REFERENCES revisions(id) ON UPDATE CASCADE",
-      "nbMatrices INTEGER",
-      "prevNbMatrices INTEGER",
-      "changedMatrices INTEGER",
-      "newFeatures INTEGER",
-      "delFeatures INTEGER",
-      "newProducts INTEGER",
-      "delProducts INTEGER",
-      "changedCells INTEGER",
-      "CONSTRAINT pk PRIMARY KEY (id, name, compareToId)"
-    ).mkString(", ") + ")")
+    connection.exec("create table metrics (" + metricModel.mkString(", ") + ")")
   }
 
   def getRevisions(): List[Map[String, Any]] = {

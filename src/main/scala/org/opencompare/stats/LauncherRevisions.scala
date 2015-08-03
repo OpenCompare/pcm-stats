@@ -1,14 +1,13 @@
 package org.opencompare.stats
 
 import java.io.{File, FileWriter}
-import java.sql.SQLException
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 import com.github.tototoshi.csv.CSVReader
 import org.apache.log4j.{FileAppender, Logger}
 import org.opencompare.io.wikipedia.io.MediaWikiAPI
-import org.opencompare.stats.utils.{DataBase, RevisionsParser, CustomLoggerLayout, CustomCsvFormat}
+import org.opencompare.stats.utils.{CustomCsvFormat, CustomLoggerLayout, DataBase, RevisionsParser}
 
 object LauncherRevisions extends App {
 
@@ -56,25 +55,25 @@ object LauncherRevisions extends App {
               val revision = new RevisionsParser(api, pageLang, pageTitle)
               revisionsSize += revision.getIds().size
               for (revid: Int <- revision.getIds()) {
-                val sql = "insert into revisions values(" + revid + ", " + "\"" + revision.getTitle.replaceAll("\"", "") + "\", " + "\"" + revision.getDate(revid).get + "\", " + "\"" + revision.getLang + "\", " + "\"" + revision.getAuthor(revid).replaceAll("\"", "") + "\")"
+                val sql = "insert into revisions values(" + revid + ", " + "\"" + pageTitle.replaceAll("\"", "") + "\", " + "\"" + revision.getDate(revid).get + "\", " + "\"" + pageLang + "\", " + "\"" + revision.getAuthor(revid).replaceAll("\"", "") + "\")"
                 try {
                   db.syncExecute(sql)
                   // Save wikitext
-                  val wikiWriter = new FileWriter(new File(wikitextPath + revision.getTitle + "-" + revid + ".wikitext"))
+                  val wikiWriter = new FileWriter(new File(wikitextPath + pageTitle + "-" + revid + ".wikitext"))
                   wikiWriter.write(revision.getWikitext(revid))
                   wikiWriter.close()
                   revisionsDone += 1
                 } catch {
-                  case e: SQLException => {
-                    e.printStackTrace()
+                  case e: Exception => {
                     println(sql)
+                    e.printStackTrace()
                   }
                 }
               }
               pagesDone += 1
               logger.info(pagesDone + "/" + pagesSize + "\t[" + revision.getIds().size + " rev." + "]\t" + pageTitle)
             } catch {
-              case e: Throwable => logger.fatal(pageTitle + " => " + e)
+              case e: Exception => logger.fatal(pageTitle + " => " + e)
             }
           })
         }
@@ -87,12 +86,10 @@ object LauncherRevisions extends App {
     while (groupThread.activeCount() > 0) {}
     logger.debug("Process => Nb. total pages: " + pagesSize)
     logger.debug("Process => Nb. pages done: " + pagesDone)
-    logger.debug("Process => Nb. total revisions: " + revisionsSize)
-    logger.debug("Process => Nb. revisions done: " + revisionsDone)
     logger.debug("Waiting for database threads to terminate...")
     while (db.hasThreadsLeft()) {}
     val done = db.getRevisions()
-    logger.debug("Database => Nb. pages done: " + done.groupBy(line => line.apply("title")).size)
+    logger.debug("Database => Nb. pages done: " + done.groupBy(line => line.apply("title")).toList.size)
     logger.debug("Database => Nb. revisions done: " + done.size)
   }
 }
