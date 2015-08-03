@@ -1,4 +1,4 @@
-package org.opencompare.stats
+package org.opencompare.stats.utils
 
 import org.apache.log4j.Logger
 import org.opencompare.api.java.util.{ComplexePCMElementComparator, DiffResult}
@@ -11,7 +11,7 @@ import scala.io.Source
 /**
  * Created by blacknight on 30/07/15.
  */
-class PcmMetrics(db : DataBase, api : MediaWikiAPI, wikitextPath : String) extends Thread {
+class MetricsGenerator(db : DataBase, api : MediaWikiAPI, wikitextPath : String) extends Thread {
 
   private val wikiLoader = new WikiTextLoader(new WikiTextTemplateProcessor(api))
 

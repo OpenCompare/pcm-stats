@@ -1,4 +1,4 @@
-package org.opencompare.stats
+package org.opencompare.stats.utils
 
 import java.io.File
 
@@ -48,7 +48,14 @@ class DataBase(path : String) {
 
   def getRevisions(): List[Map[String, Any]] = {
     val objects = ListBuffer[Map[String, Any]]()
-    val result = connection.prepare("SELECT id, title, author, lang FROM revisions")
+    val job = new SQLiteJob[SQLiteStatement]() {
+      protected def job(connection : SQLiteConnection): SQLiteStatement = {
+        // this method is called from database thread and passes the connection
+        connection.prepare("SELECT id, title, author, lang FROM revisions")
+      }
+    }
+    // FIXME: Create a method that return a .complete() leads to several issues
+    val result = queue.execute[SQLiteStatement, SQLiteJob[SQLiteStatement]](job).complete()
     while (result.step()) {
       val element = Map(
         ("id", result.columnInt(0)),
@@ -61,23 +68,47 @@ class DataBase(path : String) {
     objects.toList
   }
 
-  def syncExecute(sql : String): Any = {
-    val job = new SQLiteJob[Any]() {
+  def getMetrics(): List[Map[String, Any]] = {
+    val objects = ListBuffer[Map[String, Any]]()
+    val job = new SQLiteJob[SQLiteStatement]() {
+      protected def job(connection : SQLiteConnection): SQLiteStatement = {
+        // this method is called from database thread and passes the connection
+        connection.prepare("SELECT id, name, compareToId FROM metrics")
+      }
+    }
+    // FIXME: Create a method that return a .complete() leads to several issues
+    val result = queue.execute[SQLiteStatement, SQLiteJob[SQLiteStatement]](job).complete()
+    while (result.step()) {
+      val element = Map(
+        ("id", result.columnInt(0)),
+        ("name", result.columnString(1)),
+        ("compareToId", result.columnString(2))
+      )
+      objects.append(element)
+    }
+    objects.toList
+  }
+
+  def syncExecute(sql : String) {
+    val job = new SQLiteJob[Unit]() {
       protected def job(connection : SQLiteConnection): Unit = {
-        // this method is called from database thread and passed the connection
+        // this method is called from database thread and passes the connection
         try {
           connection.exec(sql)
         } catch {
           case e : SQLiteException => {
-            e.printStackTrace()
             println(sql)
-            connection.prepare(sql)
+            e.printStackTrace()
           }
         }
       }
     }
     // FIXME: Create a method that return a .complete() leads to several issues
-    queue.execute[Any, SQLiteJob[Any]](job)
+    queue.execute[Unit, SQLiteJob[Unit]](job)
+  }
+
+  def hasThreadsLeft(): Boolean = {
+    queue.isStopped
   }
 
 }

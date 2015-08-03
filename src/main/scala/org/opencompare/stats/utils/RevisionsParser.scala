@@ -1,4 +1,4 @@
-package org.opencompare.stats
+package org.opencompare.stats.utils
 
 import org.opencompare.io.wikipedia.io.MediaWikiAPI
 import play.api.libs.json.{JsNumber, JsObject, JsString}
@@ -9,7 +9,7 @@ import play.api.libs.json.{JsNumber, JsObject, JsString}
  * Used to get all revisions from a single wikipedia page
  *
  */
-class Revision (api : MediaWikiAPI, lang : String, title : String) {
+class RevisionsParser (api : MediaWikiAPI, lang : String, title : String) {
 
 
   private val revisions = api.getRevisionFromTitle(lang, title)

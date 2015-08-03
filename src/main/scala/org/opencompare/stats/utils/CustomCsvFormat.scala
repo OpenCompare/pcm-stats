@@ -1,6 +1,6 @@
-package org.opencompare.stats
+package org.opencompare.stats.utils
 
-import com.github.tototoshi.csv.{QUOTE_ALL, DefaultCSVFormat}
+import com.github.tototoshi.csv.{DefaultCSVFormat, QUOTE_ALL}
 
 /**
  * Created by smangin on 23/07/15.
