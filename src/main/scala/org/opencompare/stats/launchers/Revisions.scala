@@ -53,12 +53,12 @@ class Revisions(api : MediaWikiAPI, db : DataBase, time : String, wikitextPath :
                     val parentId = revision.getParentId(revid)
                     logger.debug(pageTitle + " => '" + revid + "' is an undo revision of '" + parentId + "'")
                     val sql = "delete from revisions where id=" + parentId
-                    //db.syncExecute(sql)
+                    db.syncExecute(sql)
                   }
                   val sql = "insert into revisions values(" + revid + ", " + "\"" + pageTitle.replaceAll("\"", "") + "\", " + "\"" + revision.getDate(revid).get + "\", " + "\"" + pageLang + "\", " + "\"" + revision.getAuthor(revid).replaceAll("\"", "") + "\")"
                   val fileName = file + revid + ".wikitext"
                   try {
-                    //db.syncExecute(sql)
+                    db.syncExecute(sql)
                     // Save wikitext
                     val wikiWriter = new FileWriter(new File(fileName))
                     wikiWriter.write(revision.getWikitext(revid))

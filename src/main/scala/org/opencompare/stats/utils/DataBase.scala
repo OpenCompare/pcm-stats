@@ -3,6 +3,7 @@ package org.opencompare.stats.utils
 import java.io.File
 
 import com.almworks.sqlite4java._
+import org.opencompare.stats.interfaces.DatabaseInterface
 
 import scala.collection.mutable.ListBuffer
 

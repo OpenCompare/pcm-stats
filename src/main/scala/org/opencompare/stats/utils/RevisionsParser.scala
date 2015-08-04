@@ -1,6 +1,7 @@
 package org.opencompare.stats.utils
 
 import org.opencompare.io.wikipedia.io.MediaWikiAPI
+import org.opencompare.stats.interfaces.RevisionsParserInterface
 import play.api.libs.json.{JsResultException, JsNumber, JsObject, JsString}
 
 /**
@@ -9,7 +10,7 @@ import play.api.libs.json.{JsResultException, JsNumber, JsObject, JsString}
  * Used to get all revisions from a single wikipedia page by abstracting Xpath calls
  *
  */
-class RevisionsParser (api : MediaWikiAPI, lang : String, title : String, direction : String = "newer") {
+class RevisionsParser (api : MediaWikiAPI, lang : String, title : String, direction : String = "newer") extends RevisionsParserInterface {
 
 
   private val revisions = api.getRevisionFromTitle(lang, title, direction)

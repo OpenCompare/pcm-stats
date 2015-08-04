@@ -1,4 +1,4 @@
-package org.opencompare.stats.utils
+package org.opencompare.stats.interfaces
 
 /**
  * Created by smangin on 31/07/15.
