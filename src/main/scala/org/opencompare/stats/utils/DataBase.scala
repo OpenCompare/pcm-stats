@@ -27,9 +27,9 @@ class DataBase(path : String) {
   val metricModel =List(
     "id LONG REFERENCES revisions(id) ON UPDATE CASCADE",
     "name TEXT",
+    "date DATE",
     "compareToId LONG REFERENCES revisions(id) ON UPDATE CASCADE",
     "nbMatrices INTEGER",
-    "prevNbMatrices INTEGER",
     "changedMatrices INTEGER",
     "newFeatures INTEGER",
     "delFeatures INTEGER",
@@ -53,7 +53,7 @@ class DataBase(path : String) {
     val job = new SQLiteJob[SQLiteStatement]() {
       protected def job(connection : SQLiteConnection): SQLiteStatement = {
         // this method is called from database thread and passes the connection
-        connection.prepare("SELECT id, title, author, lang FROM revisions")
+        connection.prepare("SELECT id, title, author, date, lang FROM revisions")
       }
     }
     // FIXME: Create a method that return a .complete() leads to several issues
@@ -63,7 +63,8 @@ class DataBase(path : String) {
         ("id", result.columnInt(0)),
         ("title", result.columnString(1)),
         ("author", result.columnString(2)),
-        ("lang", result.columnString(3))
+        ("date", result.columnString(3)),
+        ("lang", result.columnString(4))
       )
       objects.append(element)
     }
@@ -95,14 +96,7 @@ class DataBase(path : String) {
     val job = new SQLiteJob[Unit]() {
       protected def job(connection : SQLiteConnection): Unit = {
         // this method is called from database thread and passes the connection
-        try {
-          connection.exec(sql)
-        } catch {
-          case e : SQLiteException => {
-            println(sql)
-            e.printStackTrace()
-          }
-        }
+        connection.exec(sql)
       }
     }
     // FIXME: Create a method that return a .complete() leads to several issues

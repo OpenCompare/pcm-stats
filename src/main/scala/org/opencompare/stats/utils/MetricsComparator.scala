@@ -1,9 +1,10 @@
 package org.opencompare.stats.utils
 
 import org.apache.log4j.{FileAppender, Logger}
+import org.joda.time.DateTime
 import org.opencompare.api.java.util.{ComplexePCMElementComparator, DiffResult}
 import org.opencompare.api.java.{PCM, PCMContainer}
-import org.opencompare.io.wikipedia.io.{MediaWikiAPI, WikiTextLoader, WikiTextTemplateProcessor}
+import org.opencompare.io.wikipedia.io.{MediaWikiAPI, WikiTextLoader}
 
 import scala.collection.JavaConversions._
 import scala.io.Source
@@ -16,7 +17,7 @@ class MetricsComparator(db : DataBase, api : MediaWikiAPI, wikitextPath : String
   private val logger = Logger.getLogger("metrics.comparator")
   logger.addAppender(appender)
 
-  private val wikiLoader = new WikiTextLoader(new WikiTextTemplateProcessor(api))
+  private val wikiLoader = new WikiTextLoader(new WikiTextKeepTemplateProcessor(api))
 
   def process(title : String, content : List[Map[String, Any]]): Map[String, Int] = {
     var newestId : Int = 0
@@ -34,10 +35,11 @@ class MetricsComparator(db : DataBase, api : MediaWikiAPI, wikitextPath : String
     // Sort by revision Id newer to older
     content.sortBy(line => line.apply("id").asInstanceOf[Int]).reverse.foreach(line => {
       val lang = line.get("lang").get.toString
+      val date = line.get("date").get.toString
       oldestId = line.get("id").get.asInstanceOf[Int]
       try {
         // Get the wikitext code
-        wikitext = Source.fromFile(wikitextPath + title + "-" + oldestId + ".wikitext").mkString
+        wikitext = Source.fromFile(wikitextPath + title + "/" + oldestId + ".wikitext").mkString
         // Parse it through wikipedia miner
         oldestContainers = wikiLoader.mine(lang, wikitext, title).toList
         //  It should avoid multiple unnamed matrix
@@ -72,9 +74,9 @@ class MetricsComparator(db : DataBase, api : MediaWikiAPI, wikitextPath : String
                 db.syncExecute("insert into metrics values(" +
                   oldestId+", "+
                   "'"+oldestPcm.getName.replace("'", "")+"', "+
+                  "'" + DateTime.parse(date) + "', "+
                   newestId+", "+
                   oldestContainersSize+", "+
-                  newestContainersSize+", "+
                   (oldestContainersSize - newestContainersSize)+", "+
                   diff.getFeaturesOnlyInPCM2.size()+", "+
                   diff.getFeaturesOnlyInPCM1.size()+", "+
@@ -111,7 +113,7 @@ class MetricsComparator(db : DataBase, api : MediaWikiAPI, wikitextPath : String
         // The current container becomes the new matrix to diff
         newestContainers = oldestContainers
       } catch {
-        case e: Exception => logger.error("[" + oldestId + "] matrix '" + title + "' =>" + e.getStackTrace)
+        case e: Exception => logger.error("[" + oldestId + "] matrix '" + title + "' =>" + e.getStackTraceString)
       }
       newestId = oldestId
     })

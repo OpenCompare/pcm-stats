@@ -20,7 +20,6 @@ class Revisions(api : MediaWikiAPI, db : DataBase, time : String, wikitextPath :
     if (!new File(wikitextPath).exists()) {
       db.createTableRevisions()
       // Creates directories with leaf paths
-      new File(wikitextPath).mkdirs()
 
       // Parse wikipedia page list
       val reader = CSVReader.open(inputPageList)(new CustomCsvFormat)
@@ -38,6 +37,8 @@ class Revisions(api : MediaWikiAPI, db : DataBase, time : String, wikitextPath :
             group.foreach(line => {
               val pageLang = line.get("Lang").get
               pageTitle = line.get("Title").get
+              val file = wikitextPath + pageTitle + "/"
+              new File(file).mkdirs()
               try {
                 // your custom behavior here
                 val revision = new RevisionsParser(api, pageLang, pageTitle, "older")
@@ -53,13 +54,13 @@ class Revisions(api : MediaWikiAPI, db : DataBase, time : String, wikitextPath :
                   try {
                     db.syncExecute(sql)
                     // Save wikitext
-                    val wikiWriter = new FileWriter(new File(wikitextPath + pageTitle + "-" + revid + ".wikitext"))
+                    val wikiWriter = new FileWriter(new File(file + revid + ".wikitext"))
                     wikiWriter.write(revision.getWikitext(revid))
                     wikiWriter.close()
                     revisionsDone += 1
                   } catch {
                     case e: Exception => {
-                      database_logger.error(pageTitle + " => " + e.getStackTrace)
+                      database_logger.error(pageTitle + " => " + e.getStackTraceString)
                       database_logger.error("SQL command => " + sql)
                     }
                   }
@@ -67,7 +68,7 @@ class Revisions(api : MediaWikiAPI, db : DataBase, time : String, wikitextPath :
                 pagesDone += 1
                 logger.info(pagesDone + "/" + pagesSize + "\t[" + revision.getIds().size + " rev." + "]\t" + pageTitle)
               } catch {
-                case e: Exception => logger.error(pageTitle + " => " + e.getStackTrace)
+                case e: Exception => logger.error(pageTitle + " => " + e.getStackTraceString)
               }
             })
           }

@@ -1,7 +1,7 @@
 package org.opencompare.stats.utils
 
 import org.opencompare.io.wikipedia.io.MediaWikiAPI
-import play.api.libs.json.{JsNumber, JsObject, JsString}
+import play.api.libs.json.{JsUndefined, JsNumber, JsObject, JsString}
 
 /**
  * Created by smangin on 7/23/15.
@@ -48,8 +48,12 @@ class RevisionsParser (api : MediaWikiAPI, lang : String, title : String, direct
   def isUndo(revid: Int): Boolean = {
     val revision = getRevision(revid)
     if (revision.isDefined) {
+      val comment = (revision.get \ "comment")
+      if (comment.isInstanceOf[JsUndefined]) {
+        false
+      }
       undoValues.foreach(value => {
-        if ((revision.get \ "comment").as[JsString].value.contains(value)) {
+        if (comment.as[JsString].value.contains(value)) {
           true
         }
       })
