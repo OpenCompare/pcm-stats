@@ -3,7 +3,7 @@ package org.opencompare.stats
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
-import org.apache.log4j.{Logger, FileAppender}
+import org.apache.log4j.{Level, Logger, FileAppender}
 import org.opencompare.io.wikipedia.io.MediaWikiAPI
 import org.opencompare.stats.launchers.{Metrics, Revisions}
 import org.opencompare.stats.utils.{CustomLoggerLayout, DataBase}
@@ -20,9 +20,11 @@ object Launcher extends App {
   val path = "metrics/"
   val wikitextPath = path + "wikitext/"
   // Logger
+  val level = Level.ALL
   val logger = Logger.getLogger("launcher")
   val fh = new FileAppender(new CustomLoggerLayout(), path + "metrics.log")
   logger.addAppender(fh)
+  logger.setLevel(level)
   val revisions_logger = Logger.getLogger("revisions")
   revisions_logger.addAppender(fh)
   val metrics_logger = Logger.getLogger("metrics")
@@ -33,8 +35,8 @@ object Launcher extends App {
   // Database
   val db = new DataBase(path + "metrics.db")
 
-  val revisions = new Revisions(api, db, cTime.format(formatter), wikitextPath, fh)
-  val metrics = new Metrics(api, db, cTime.format(formatter), wikitextPath, fh)
+  val revisions = new Revisions(api, db, cTime.format(formatter), wikitextPath, fh, level)
+  val metrics = new Metrics(api, db, cTime.format(formatter), wikitextPath, fh, level)
   logger.info("Launcher starts the revision process...")
   revisions.start()
   logger.info("Launcher starts the metrics process...")

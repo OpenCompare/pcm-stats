@@ -1,6 +1,6 @@
 package org.opencompare.stats.utils
 
-import org.apache.log4j.{FileAppender, Logger}
+import org.apache.log4j.{Level, FileAppender, Logger}
 import org.joda.time.DateTime
 import org.opencompare.api.java.util.{ComplexePCMElementComparator, DiffResult}
 import org.opencompare.api.java.{PCM, PCMContainer}
@@ -12,10 +12,11 @@ import scala.io.Source
 /**
  * Created by smangin on 30/07/15.
  */
-class MetricsComparator(db : DataBase, api : MediaWikiAPI, wikitextPath : String, appender : FileAppender) extends Thread {
+class MetricsComparator(db : DataBase, api : MediaWikiAPI, wikitextPath : String, appender : FileAppender, level : Level) extends Thread {
 
   private val logger = Logger.getLogger("metrics.comparator")
   logger.addAppender(appender)
+  logger.setLevel(level)
 
   private val wikiLoader = new WikiTextLoader(new WikiTextKeepTemplateProcessor(api))
 
@@ -93,10 +94,10 @@ class MetricsComparator(db : DataBase, api : MediaWikiAPI, wikitextPath : String
                   diff.getDifferingCells.size()+")")
               } else {
                 if (oldestContainers.size == 0) {
-                  logger.warn("[" + oldestId + "] >> [" + newestId + "] first matrix '" + oldestPcm.getName + "'")
+                  logger.warn("[" + oldestId + "] >> [" + newestId + "] first matrix '" + newestPcm.getName + "'")
                   // New matrix
                 } else {
-                  logger.warn("[" + oldestId + "] >> [" + newestId + "] deleted matrix '" + oldestPcm.getName + "'")
+                  logger.warn("[" + oldestId + "] >> [" + newestId + "] deleted matrix '" + newestPcm.getName + "'")
                   // Renamed or deleted matrix
                 }
                 // Otherwize populate metrics with the new matrix properties

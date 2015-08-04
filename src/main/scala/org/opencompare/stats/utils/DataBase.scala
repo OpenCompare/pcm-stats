@@ -1,6 +1,8 @@
 package org.opencompare.stats.utils
 
 import java.io.File
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 import com.almworks.sqlite4java._
 import org.opencompare.stats.interfaces.DatabaseInterface
@@ -12,9 +14,13 @@ import scala.collection.mutable.ListBuffer
  */
 class DataBase(path : String) extends DatabaseInterface {
 
+  // Time
+  val cTime = LocalDateTime.now()
+  val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
   // load the sqlite-JDBC driver using the current class loader
   private val connection = new SQLiteConnection(new File(path))
   connection.open(true)
+  connection.initializeBackup(new File(path + "_" + cTime.format(formatter) + ".db")).backupStep(-1)
   private val queue = new SQLiteQueue(new File(path))
   queue.start()
 
@@ -114,8 +120,8 @@ class DataBase(path : String) extends DatabaseInterface {
         connection.prepare(s"SELECT id FROM revisions where id=?").bind(1, id)
       }
     }
-    val result = queue.execute[SQLiteStatement, SQLiteJob[SQLiteStatement]](job).complete()
-    result.hasStepped
+    val result = queue.execute[SQLiteStatement, SQLiteJob[SQLiteStatement]](job)
+    result.complete().step()
   }
 
 }

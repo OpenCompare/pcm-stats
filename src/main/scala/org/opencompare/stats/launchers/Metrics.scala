@@ -2,17 +2,18 @@ package org.opencompare.stats.launchers
 
 import java.io.File
 
-import org.apache.log4j.{FileAppender, Logger}
+import org.apache.log4j.{Level, FileAppender, Logger}
 import org.opencompare.io.wikipedia.io.MediaWikiAPI
 import org.opencompare.stats.utils.{DataBase, MetricsComparator}
 
 /**
  * Created by smangin on 23/07/15.
  */
-class Metrics(api : MediaWikiAPI, db : DataBase, time : String, wikitextPath : String, appender : FileAppender) {
+class Metrics(api : MediaWikiAPI, db : DataBase, time : String, wikitextPath : String, appender : FileAppender, level : Level) {
 
   private val logger = Logger.getLogger("metrics")
   logger.addAppender(appender)
+  logger.setLevel(level)
 
   def start(): Unit = {
     if (new File(wikitextPath).exists()) {
@@ -29,7 +30,7 @@ class Metrics(api : MediaWikiAPI, db : DataBase, time : String, wikitextPath : S
       pages.foreach(page => {
         val title = page._1.toString
         val content = synchronized(page._2)
-        val metrics = new MetricsComparator(db, api, wikitextPath, appender)
+        val metrics = new MetricsComparator(db, api, wikitextPath, appender, level)
         val thread = new Thread(groupThread, title) {
           override def run() {
             try {

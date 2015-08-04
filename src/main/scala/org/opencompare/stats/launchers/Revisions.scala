@@ -3,20 +3,21 @@ package org.opencompare.stats.launchers
 import java.io.{File, FileWriter}
 
 import com.github.tototoshi.csv.CSVReader
-import org.apache.log4j.{FileAppender, Logger}
+import org.apache.log4j.{Level, FileAppender, Logger}
 import org.opencompare.io.wikipedia.io.MediaWikiAPI
 import org.opencompare.stats.utils.{CustomCsvFormat, DataBase, RevisionsParser}
 
 /**
  * Created by smangin on 23/07/15.
  */
-class Revisions(api : MediaWikiAPI, db : DataBase, time : String, wikitextPath : String, appender : FileAppender) {
+class Revisions(api : MediaWikiAPI, db : DataBase, time : String, wikitextPath : String, appender : FileAppender, level : Level) {
 
   // File configurations
   private val inputPageList = new File("src/main/resources/list_of_PCMs.csv")
   private val logger = Logger.getLogger("revisions")
   private val database_logger = Logger.getLogger("revisions.database")
   logger.addAppender(appender)
+  logger.setLevel(level)
   database_logger.addAppender(appender)
 
   def start() {
@@ -49,7 +50,8 @@ class Revisions(api : MediaWikiAPI, db : DataBase, time : String, wikitextPath :
               for (revid: Int <- revision.getIds()) {
                 // Keep an eye on already existing revisions
                 if (db.revisionExists(revid)) {
-                  logger.info(pageTitle + " already done !")
+                  //logger.debug(pageTitle + " with id " + revid + " already done !") // Too much verbose
+                  revisionsDone += 1
                 } else {
                   // To prevent from matrix deletion then addition,  delete the parentid from the database (it should be here because of the older to newer sorting)
                   if (revision.isUndo(revid)) {
