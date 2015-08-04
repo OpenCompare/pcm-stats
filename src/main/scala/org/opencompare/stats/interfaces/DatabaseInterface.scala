@@ -1,7 +1,8 @@
 package org.opencompare.stats.interfaces
 
 /**
- * Created by smangin on 31/07/15.
+ * Created by smangin on 04/08/15.
+ *
  */
 trait DatabaseInterface {
 

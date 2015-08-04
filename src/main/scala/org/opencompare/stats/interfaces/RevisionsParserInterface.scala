@@ -1,9 +1,7 @@
 package org.opencompare.stats.interfaces
 
 /**
- * Created by smangin on 7/23/15.
- *
- * Used to get all revisions from a single wikipedia page by abstracting Xpath calls
+ * Created by smangin on 04/08/15.
  *
  */
 trait RevisionsParserInterface {

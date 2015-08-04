@@ -7,6 +7,9 @@ import org.apache.log4j.{FileAppender, Logger}
 import org.opencompare.io.wikipedia.io.MediaWikiAPI
 import org.opencompare.stats.utils.{CustomCsvFormat, DataBase, RevisionsParser}
 
+/**
+ * Created by smangin on 23/07/15.
+ */
 class Revisions(api : MediaWikiAPI, db : DataBase, time : String, wikitextPath : String, appender : FileAppender) {
 
   // File configurations

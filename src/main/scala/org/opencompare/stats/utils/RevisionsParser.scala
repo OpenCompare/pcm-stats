@@ -5,7 +5,7 @@ import org.opencompare.stats.interfaces.RevisionsParserInterface
 import play.api.libs.json.{JsResultException, JsNumber, JsObject, JsString}
 
 /**
- * Created by smangin on 7/23/15.
+ * Created by smangin on 23/07/15.
  *
  * Used to get all revisions from a single wikipedia page by abstracting Xpath calls
  *
