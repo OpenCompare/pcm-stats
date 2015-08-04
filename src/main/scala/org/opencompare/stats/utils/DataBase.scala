@@ -9,7 +9,7 @@ import scala.collection.mutable.ListBuffer
 /**
  * Created by smangin on 31/07/15.
  */
-class DataBase(path : String) {
+class DataBase(path : String) extends DatabaseInterface {
 
   // load the sqlite-JDBC driver using the current class loader
   private val connection = new SQLiteConnection(new File(path))
@@ -17,14 +17,14 @@ class DataBase(path : String) {
   private val queue = new SQLiteQueue(new File(path))
   queue.start()
 
-  val revisionModel = List(
+  private val revisionModel = List(
     "id LONG PRIMARY KEY",
     "title TEXT",
     "date DATE",
     "lang TEXT",
     "author TEXT"
   )
-  val metricModel =List(
+  private val metricModel = List(
     "id LONG REFERENCES revisions(id) ON UPDATE CASCADE",
     "name TEXT",
     "date DATE",
@@ -79,7 +79,6 @@ class DataBase(path : String) {
         connection.prepare("SELECT id, name, compareToId FROM metrics")
       }
     }
-    // FIXME: Create a method that return a .complete() leads to several issues
     val result = queue.execute[SQLiteStatement, SQLiteJob[SQLiteStatement]](job).complete()
     while (result.step()) {
       val element = Map(
@@ -105,6 +104,17 @@ class DataBase(path : String) {
 
   def hasThreadsLeft(): Boolean = {
     queue.isStopped
+  }
+
+  def revisionExists(id: Int): Boolean = {
+    val job = new SQLiteJob[SQLiteStatement]() {
+      protected def job(connection : SQLiteConnection): SQLiteStatement = {
+        // this method is called from database thread and passes the connection
+        connection.prepare(s"SELECT id FROM revisions where id=?").bind(1, id)
+      }
+    }
+    val result = queue.execute[SQLiteStatement, SQLiteJob[SQLiteStatement]](job).complete()
+    result.hasStepped
   }
 
 }

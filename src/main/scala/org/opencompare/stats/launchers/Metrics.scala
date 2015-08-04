@@ -42,7 +42,8 @@ class Metrics(api : MediaWikiAPI, db : DataBase, time : String, wikitextPath : S
               revisionDone += result.apply("revisionsDone")
             } catch {
               case e: Exception => {
-                logger.error(title + " => " + e.getStackTraceString)
+                logger.error(title + " => " + e.getLocalizedMessage)
+                logger.error(e.getStackTraceString)
               }
             }
           }

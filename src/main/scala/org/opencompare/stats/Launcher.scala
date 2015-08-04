@@ -21,7 +21,7 @@ object Launcher extends App {
   val wikitextPath = path + "wikitext/"
   // Logger
   val logger = Logger.getLogger("launcher")
-  val fh = new FileAppender(new CustomLoggerLayout(), path + "process.log")
+  val fh = new FileAppender(new CustomLoggerLayout(), path + "metrics.log")
   logger.addAppender(fh)
   val revisions_logger = Logger.getLogger("revisions")
   revisions_logger.addAppender(fh)
@@ -31,7 +31,7 @@ object Launcher extends App {
   // Parser
   val api = synchronized(new MediaWikiAPI("https", "wikipedia.org"))
   // Database
-  val db = new DataBase(path + cTime.format(formatter) +".db")
+  val db = new DataBase(path + "metrics.db")
 
   val revisions = new Revisions(api, db, cTime.format(formatter), wikitextPath, fh)
   val metrics = new Metrics(api, db, cTime.format(formatter), wikitextPath, fh)

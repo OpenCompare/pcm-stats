@@ -38,8 +38,16 @@ class MetricsComparator(db : DataBase, api : MediaWikiAPI, wikitextPath : String
       val date = line.get("date").get.toString
       oldestId = line.get("id").get.asInstanceOf[Int]
       try {
-        // Get the wikitext code
-        wikitext = Source.fromFile(wikitextPath + title + "/" + oldestId + ".wikitext").mkString
+        var continue = false
+        do { // Hack to retry when file opening maximum
+          try {
+            // Get the wikitext code
+            wikitext = Source.fromFile(wikitextPath + title + "/" + oldestId + ".wikitext").mkString
+            continue = false
+          } catch {
+            case e : Exception => continue = true
+          }
+        } while (continue)
         // Parse it through wikipedia miner
         oldestContainers = wikiLoader.mine(lang, wikitext, title).toList
         //  It should avoid multiple unnamed matrix
@@ -113,7 +121,10 @@ class MetricsComparator(db : DataBase, api : MediaWikiAPI, wikitextPath : String
         // The current container becomes the new matrix to diff
         newestContainers = oldestContainers
       } catch {
-        case e: Exception => logger.error("[" + oldestId + "] matrix '" + title + "' =>" + e.getStackTraceString)
+        case e: Exception => {
+          logger.error("[" + oldestId + "] matrix '" + title + "' =>" + e.getLocalizedMessage)
+          logger.error(e.getStackTraceString)
+        }
       }
       newestId = oldestId
     })
