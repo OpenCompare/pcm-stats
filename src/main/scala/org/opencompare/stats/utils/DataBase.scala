@@ -26,6 +26,7 @@ class DataBase(path : String) extends DatabaseInterface {
 
   private val revisionModel = List(
     "id LONG PRIMARY KEY",
+    "parentId LONG REFERENCES revisions(id) ON UPDATE CASCADE",
     "title TEXT",
     "date DATE",
     "lang TEXT",
@@ -72,7 +73,7 @@ class DataBase(path : String) extends DatabaseInterface {
     val job = new SQLiteJob[SQLiteStatement]() {
       protected def job(connection : SQLiteConnection): SQLiteStatement = {
         // this method is called from database thread and passes the connection
-        connection.prepare("SELECT id, title, author, date, lang FROM revisions")
+        connection.prepare("SELECT id, title, author, date, lang, parentid FROM revisions")
       }
     }
     // FIXME: Create a method that return a .complete() leads to several issues
@@ -83,7 +84,8 @@ class DataBase(path : String) extends DatabaseInterface {
         ("title", result.columnString(1)),
         ("author", result.columnString(2)),
         ("date", result.columnString(3)),
-        ("lang", result.columnString(4))
+        ("lang", result.columnString(4)),
+        ("parentid", result.columnString(5))
       )
       objects.append(element)
     }
@@ -130,6 +132,17 @@ class DataBase(path : String) extends DatabaseInterface {
       protected def job(connection : SQLiteConnection): SQLiteStatement = {
         // this method is called from database thread and passes the connection
         connection.prepare(s"SELECT id FROM revisions where id=?").bind(1, id)
+      }
+    }
+    val result = queue.execute[SQLiteStatement, SQLiteJob[SQLiteStatement]](job)
+    result.complete().step()
+  }
+
+  def metricExists(id: Int, parentid: Int, title : String): Boolean = {
+    val job = new SQLiteJob[SQLiteStatement]() {
+      protected def job(connection : SQLiteConnection): SQLiteStatement = {
+        // this method is called from database thread and passes the connection
+        connection.prepare(s"SELECT id FROM revisions where id=?, parentid=?, title=?").bind(1, id).bind(2, parentid).bind(3, title)
       }
     }
     val result = queue.execute[SQLiteStatement, SQLiteJob[SQLiteStatement]](job)

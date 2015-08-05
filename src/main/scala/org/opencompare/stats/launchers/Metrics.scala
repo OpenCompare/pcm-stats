@@ -1,8 +1,6 @@
 package org.opencompare.stats.launchers
 
-import java.io.File
-
-import org.apache.log4j.{Level, FileAppender, Logger}
+import org.apache.log4j.{FileAppender, Level, Logger}
 import org.opencompare.io.wikipedia.io.MediaWikiAPI
 import org.opencompare.stats.utils.DataBase
 
@@ -16,9 +14,7 @@ class Metrics(api : MediaWikiAPI, db : DataBase, time : String, wikitextPath : S
   logger.setLevel(level)
 
   def start(): Unit = {
-    if (!new File(wikitextPath).exists()) {
-      db.createTableMetrics()
-    }
+    db.createTableMetrics()
 
     val revisions = db.getRevisions()
     val pages = revisions.groupBy(line => {

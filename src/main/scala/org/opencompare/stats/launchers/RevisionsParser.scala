@@ -4,6 +4,8 @@ import org.opencompare.io.wikipedia.io.MediaWikiAPI
 import org.opencompare.stats.interfaces.RevisionsParserInterface
 import play.api.libs.json.{JsNumber, JsObject, JsResultException, JsString}
 
+import scala.collection.mutable.ListBuffer
+
 /**
  * Created by smangin on 23/07/15.
  *
@@ -12,7 +14,8 @@ import play.api.libs.json.{JsNumber, JsObject, JsResultException, JsString}
  */
 class RevisionsParser (api : MediaWikiAPI, lang : String, title : String, direction : String = "newer") extends RevisionsParserInterface {
 
-
+  var skipUndo = false
+  var skipBlank = false
   private val revisions = api.getRevisionFromTitle(lang, title, direction)
   private var currentId = -1
   private val blankValues= List(
@@ -36,10 +39,24 @@ class RevisionsParser (api : MediaWikiAPI, lang : String, title : String, direct
     (revision \ "revid").as[JsNumber].value.toIntExact
   }
 
-  def getIds(): List[Int] = {
+  private def getIds(): List[Int] = {
     for (revision <- revisions) yield {
       (revision \ "revid").as[JsNumber].value.toIntExact
     }
+  }
+
+  def getIds(skipUndo : Boolean = false, skipBlank : Boolean = false): List[Int] = {
+    val ids = getIds()
+    val blackList = ListBuffer[Int]()
+    ids.foreach(id => {
+      if (skipUndo && isUndo(id)) {
+        blackList.append(getParentId(id))
+      }
+      if (skipBlank && isBlank(id)) {
+        blackList.append(id)
+      }
+    })
+    ids - blankValues
   }
 
   def getDate(revid: Int): Option[String] = {
@@ -52,45 +69,48 @@ class RevisionsParser (api : MediaWikiAPI, lang : String, title : String, direct
   }
 
   def isBlank(revid: Int): Boolean = {
+    var blank = false
     val revision = getRevision(revid)
     if (revision.isDefined) {
       try {
         val comment = (revision.get \ "comment")
         blankValues.foreach(value => {
           if (comment.as[JsString].value.contains(value)) {
-            true
+            blank = true
           }
         })
       } catch {
         case e : JsResultException => false
       }
     }
-    false
+    blank
   }
 
   def isUndo(revid: Int): Boolean = {
+    var undo = false
     val revision = getRevision(revid)
     if (revision.isDefined) {
       try {
         val comment = (revision.get \ "comment")
         undoValues.foreach(value => {
           if (comment.as[JsString].value.contains(value)) {
-            true
+            undo = true
           }
         })
       } catch {
         case e : JsResultException => false
       }
     }
-    false
+    undo
   }
 
   def getParentId(revid: Int): Int = {
+    var parentid = 0
     val revision = getRevision(revid)
     if (revision.isDefined) {
-      (revision.get \ "parentid").as[JsNumber].value.toIntExact
+      parentid = (revision.get \ "parentid").as[JsNumber].value.toIntExact
     }
-    0
+    parentid
   }
 
   def getAuthor(revid: Int): String = {

@@ -41,51 +41,39 @@ class Revisions(api : MediaWikiAPI, db : DataBase, time : String, wikitextPath :
           group.foreach(line => {
             val pageLang = line.get("Lang").get
             pageTitle = line.get("Title").get
-            logger.debug(pageTitle + " started...")
             val file = wikitextPath + pageTitle + "/"
             new File(file).mkdirs()
             try {
-              // your custom behavior here
               val revision = new RevisionsParser(api, pageLang, pageTitle, "older")
+              val ids = revision.getIds(true, true)
               revisionsSize += revision.getIds().size
-              for (revid: Int <- revision.getIds()) {
+              for (revid: Int <- ids) {
                 // Keep an eye on already existing revisions
                 val fileName = file + revid + ".wikitext"
                 val revisionFile = new File(fileName)
                 if (db.revisionExists(revid)) {
-                  if (revision.isBlank(revid)) {
-                    logger.warn(pageTitle + " => '" + revid + "' is an blank revision. deleted.")
-                    val sql = "delete from revisions where id=" + revid
-                    db.syncExecute(sql)
-                  }
                   //logger.debug(pageTitle + " with id " + revid + " already done !") // Too much verbose
                   revisionsDone += 1
                 } else {
+                  val parentId = revision.getParentId(revid)
                   // To prevent from matrix deletion then addition,  delete the parentid from the database (it should be here because of the older to newer sorting)
-                  if (!revision.isBlank(revid)) {
-                    if (revision.isUndo(revid)) {
-                      val parentId = revision.getParentId(revid)
-                      logger.debug(pageTitle + " => '" + revid + "' is an undo revision of '" + parentId + "'")
-                      val sql = "delete from revisions where id=" + parentId
-                      db.syncExecute(sql)
-                    }
-                    val sql = "insert into revisions values(" + revid + ", " + "\"" + pageTitle.replaceAll("\"", "") + "\", " + "\"" + revision.getDate(revid).get + "\", " + "\"" + pageLang + "\", " + "\"" + revision.getAuthor(revid).replaceAll("\"", "") + "\")"
-                    try {
-                      db.syncExecute(sql)
-                      revisionsDone += 1
-                      newRevisions += 1
-                    } catch {
-                      case e: Exception => {
-                        database_logger.error(pageTitle + " => " + e.getLocalizedMessage)
-                        database_logger.error("SQL command => " + sql)
-                        database_logger.error("Wikitext filename => " + fileName)
-                        database_logger.error(e.getStackTraceString)
-                      }
-                    }
-                  } else {
-                    val sql = "delete from revisions where id=" + revid
+                  if (revision.isUndo(revid)) {
+                    logger.debug(pageTitle + " => '" + revid + "' is an undo revision of '" + parentId + "'")
+                    val sql = "delete from revisions where id=" + parentId
                     db.syncExecute(sql)
-                    logger.warn(pageTitle + " => '" + revid + "' is an blank revision. deleted.")
+                  }
+                  val sql = "insert into revisions values(" + revid + ", " + parentId + ", " + "\"" + pageTitle.replaceAll("\"", "") + "\", " + "\"" + revision.getDate(revid).get + "\", " + "\"" + pageLang + "\", " + "\"" + revision.getAuthor(revid).replaceAll("\"", "") + "\")"
+                  try {
+                    db.syncExecute(sql)
+                    revisionsDone += 1
+                    newRevisions += 1
+                  } catch {
+                    case e: Exception => {
+                      database_logger.error(pageTitle + " => " + e.getLocalizedMessage)
+                      database_logger.error("SQL command => " + sql)
+                      database_logger.error("Wikitext filename => " + fileName)
+                      database_logger.error(e.getStackTraceString)
+                    }
                   }
                 }
                 if (!revisionFile.exists() || revisionFile.length() == 0) {
@@ -99,12 +87,12 @@ class Revisions(api : MediaWikiAPI, db : DataBase, time : String, wikitextPath :
                   } else {
                     val sql = "delete from revisions where id=" + revid
                     db.syncExecute(sql)
-                    logger.warn(pageTitle + " => '" + revid + "' is an blank revision. deleted.")
+                    logger.warn(pageTitle + " => '" + revid + "' is a blank revision. deleted.")
                   }
                 }
               }
               pagesDone += 1
-              logger.info(pagesDone + "/" + pagesSize + "\t[" + revision.getIds().size + " rev." + "]\t" + pageTitle)
+              logger.info(pagesDone + "/" + pagesSize + "\t[" + ids.size + "/" + revision.getIds().size + " rev." + "]\t" + pageTitle)
             } catch {
               case e: Exception => {
                 logger.error(pageTitle + " => " + e.getLocalizedMessage)
