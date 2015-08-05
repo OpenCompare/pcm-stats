@@ -53,6 +53,11 @@ class Revisions(api : MediaWikiAPI, db : DataBase, time : String, wikitextPath :
                 val fileName = file + revid + ".wikitext"
                 val revisionFile = new File(fileName)
                 if (db.revisionExists(revid)) {
+                  if (revision.isBlank(revid)) {
+                    logger.warn(pageTitle + " => '" + revid + "' is an blank revision. deleted.")
+                    val sql = "delete from revisions where id=" + revid
+                    db.syncExecute(sql)
+                  }
                   //logger.debug(pageTitle + " with id " + revid + " already done !") // Too much verbose
                   revisionsDone += 1
                 } else {
@@ -78,7 +83,9 @@ class Revisions(api : MediaWikiAPI, db : DataBase, time : String, wikitextPath :
                       }
                     }
                   } else {
-                    logger.error(pageTitle + " => '" + revid + "' is an blank revision")
+                    val sql = "delete from revisions where id=" + revid
+                    db.syncExecute(sql)
+                    logger.warn(pageTitle + " => '" + revid + "' is an blank revision. deleted.")
                   }
                 }
                 if (!revisionFile.exists() || revisionFile.length() == 0) {
@@ -88,9 +95,11 @@ class Revisions(api : MediaWikiAPI, db : DataBase, time : String, wikitextPath :
                     val wikiWriter = new FileWriter(revisionFile)
                     wikiWriter.write(wikitext)
                     wikiWriter.close()
-                    logger.debug(pageTitle + " => '" + revid + "' wikitext retreived and saved")
+                    //logger.debug(pageTitle + " => '" + revid + "' wikitext retreived and saved") // Too much verbose
                   } else {
-                    logger.error(pageTitle + " => '" + revid + "' wikitext empty")
+                    val sql = "delete from revisions where id=" + revid
+                    db.syncExecute(sql)
+                    logger.warn(pageTitle + " => '" + revid + "' is an blank revision. deleted.")
                   }
                 }
               }
