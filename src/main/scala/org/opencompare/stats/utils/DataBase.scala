@@ -47,12 +47,24 @@ class DataBase(path : String) extends DatabaseInterface {
 
   // create the schema
   def createTableRevisions() {
-    connection.exec("drop table if exists revisions")
-    connection.exec("create table revisions (" + revisionModel.mkString(", ") + ")")
+    val job = new SQLiteJob[Unit]() {
+      protected def job(connection : SQLiteConnection): Unit = {
+        // this method is called from database thread and passes the connection
+        connection.exec("drop table if exists revisions")
+        connection.exec("create table revisions (" + revisionModel.mkString(", ") + ")")
+      }
+    }
+    queue.execute[Unit, SQLiteJob[Unit]](job)
   }
   def createTableMetrics() {
-    connection.exec("drop table if exists metrics")
-    connection.exec("create table metrics (" + metricModel.mkString(", ") + ")")
+    val job = new SQLiteJob[Unit]() {
+      protected def job(connection : SQLiteConnection): Unit = {
+        // this method is called from database thread and passes the connection
+        connection.exec("drop table if exists metrics")
+        connection.exec("create table metrics (" + metricModel.mkString(", ") + ")")
+      }
+    }
+    queue.execute[Unit, SQLiteJob[Unit]](job)
   }
 
   def getRevisions(): List[Map[String, Any]] = {

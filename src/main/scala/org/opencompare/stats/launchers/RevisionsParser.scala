@@ -1,8 +1,8 @@
-package org.opencompare.stats.utils
+package org.opencompare.stats.launchers
 
 import org.opencompare.io.wikipedia.io.MediaWikiAPI
 import org.opencompare.stats.interfaces.RevisionsParserInterface
-import play.api.libs.json.{JsResultException, JsNumber, JsObject, JsString}
+import play.api.libs.json.{JsNumber, JsObject, JsResultException, JsString}
 
 /**
  * Created by smangin on 23/07/15.
@@ -15,8 +15,13 @@ class RevisionsParser (api : MediaWikiAPI, lang : String, title : String, direct
 
   private val revisions = api.getRevisionFromTitle(lang, title, direction)
   private var currentId = -1
+  private val blankValues= List(
+    "WP:AES",
+    "WP:AUTOSUMM"
+  )
   private val undoValues= List(
     "WP:UNDO",
+    "WP:CLUEBOT",
     "WP:\"",
     "WP:REVERT",
     "WP:REV",
@@ -44,6 +49,23 @@ class RevisionsParser (api : MediaWikiAPI, lang : String, title : String, direct
     } else {
       None
     }
+  }
+
+  def isBlank(revid: Int): Boolean = {
+    val revision = getRevision(revid)
+    if (revision.isDefined) {
+      try {
+        val comment = (revision.get \ "comment")
+        blankValues.foreach(value => {
+          if (comment.as[JsString].value.contains(value)) {
+            true
+          }
+        })
+      } catch {
+        case e : JsResultException => false
+      }
+    }
+    false
   }
 
   def isUndo(revid: Int): Boolean = {

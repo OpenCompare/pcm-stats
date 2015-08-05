@@ -5,7 +5,7 @@ import java.io.{File, FileWriter}
 import com.github.tototoshi.csv.CSVReader
 import org.apache.log4j.{Level, FileAppender, Logger}
 import org.opencompare.io.wikipedia.io.MediaWikiAPI
-import org.opencompare.stats.utils.{CustomCsvFormat, DataBase, RevisionsParser}
+import org.opencompare.stats.utils.{CustomCsvFormat, DataBase}
 
 /**
  * Created by smangin on 23/07/15.
@@ -32,6 +32,7 @@ class Revisions(api : MediaWikiAPI, db : DataBase, time : String, wikitextPath :
     var pagesDone = synchronized(0)
     var revisionsSize = synchronized(0)
     var revisionsDone = synchronized(0)
+    var newRevisions = synchronized(0)
     val groupThread = new ThreadGroup("revisions")
     groups.foreach(group => {
       var pageTitle = group.head.get("Title").get
@@ -49,33 +50,47 @@ class Revisions(api : MediaWikiAPI, db : DataBase, time : String, wikitextPath :
               revisionsSize += revision.getIds().size
               for (revid: Int <- revision.getIds()) {
                 // Keep an eye on already existing revisions
+                val fileName = file + revid + ".wikitext"
+                val revisionFile = new File(fileName)
                 if (db.revisionExists(revid)) {
                   //logger.debug(pageTitle + " with id " + revid + " already done !") // Too much verbose
                   revisionsDone += 1
                 } else {
                   // To prevent from matrix deletion then addition,  delete the parentid from the database (it should be here because of the older to newer sorting)
-                  if (revision.isUndo(revid)) {
-                    val parentId = revision.getParentId(revid)
-                    logger.debug(pageTitle + " => '" + revid + "' is an undo revision of '" + parentId + "'")
-                    val sql = "delete from revisions where id=" + parentId
-                    db.syncExecute(sql)
-                  }
-                  val sql = "insert into revisions values(" + revid + ", " + "\"" + pageTitle.replaceAll("\"", "") + "\", " + "\"" + revision.getDate(revid).get + "\", " + "\"" + pageLang + "\", " + "\"" + revision.getAuthor(revid).replaceAll("\"", "") + "\")"
-                  val fileName = file + revid + ".wikitext"
-                  try {
-                    db.syncExecute(sql)
-                    // Save wikitext
-                    val wikiWriter = new FileWriter(new File(fileName))
-                    wikiWriter.write(revision.getWikitext(revid))
-                    wikiWriter.close()
-                    revisionsDone += 1
-                  } catch {
-                    case e: Exception => {
-                      database_logger.error(pageTitle + " => " + e.getLocalizedMessage)
-                      database_logger.error("SQL command => " + sql)
-                      database_logger.error("Wikitext filename => " + fileName)
-                      database_logger.error(e.getStackTraceString)
+                  if (!revision.isBlank(revid)) {
+                    if (revision.isUndo(revid)) {
+                      val parentId = revision.getParentId(revid)
+                      logger.debug(pageTitle + " => '" + revid + "' is an undo revision of '" + parentId + "'")
+                      val sql = "delete from revisions where id=" + parentId
+                      db.syncExecute(sql)
                     }
+                    val sql = "insert into revisions values(" + revid + ", " + "\"" + pageTitle.replaceAll("\"", "") + "\", " + "\"" + revision.getDate(revid).get + "\", " + "\"" + pageLang + "\", " + "\"" + revision.getAuthor(revid).replaceAll("\"", "") + "\")"
+                    try {
+                      db.syncExecute(sql)
+                      revisionsDone += 1
+                      newRevisions += 1
+                    } catch {
+                      case e: Exception => {
+                        database_logger.error(pageTitle + " => " + e.getLocalizedMessage)
+                        database_logger.error("SQL command => " + sql)
+                        database_logger.error("Wikitext filename => " + fileName)
+                        database_logger.error(e.getStackTraceString)
+                      }
+                    }
+                  } else {
+                    logger.error(pageTitle + " => '" + revid + "' is an blank revision")
+                  }
+                }
+                if (!revisionFile.exists() || revisionFile.length() == 0) {
+                  // Save wikitext
+                  val wikitext = revision.getWikitext(revid)
+                  if (wikitext != "") {
+                    val wikiWriter = new FileWriter(revisionFile)
+                    wikiWriter.write(wikitext)
+                    wikiWriter.close()
+                    logger.debug(pageTitle + " => '" + revid + "' wikitext retreived and saved")
+                  } else {
+                    logger.error(pageTitle + " => '" + revid + "' wikitext empty")
                   }
                 }
               }
@@ -103,6 +118,7 @@ class Revisions(api : MediaWikiAPI, db : DataBase, time : String, wikitextPath :
     val done = db.getRevisions()
     logger.info("Database => Nb. pages done: " + done.groupBy(line => line.apply("title")).toList.size)
     logger.info("Database => Nb. revisions done: " + done.size)
+    logger.info("Database => Nb. new revisions: " + newRevisions)
     logger.info("process finished.")
   }
 }

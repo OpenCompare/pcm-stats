@@ -42,5 +42,4 @@ object Launcher extends App {
   logger.info("Launcher starts the metrics process...")
   metrics.start()
   logger.info("Launcher has stopped.")
-
 }
