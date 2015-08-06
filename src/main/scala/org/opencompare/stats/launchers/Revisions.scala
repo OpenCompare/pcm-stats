@@ -57,11 +57,6 @@ class Revisions(api : MediaWikiAPI, db : DataBase, time : String, wikitextPath :
                 } else {
                   val parentId = revision.getParentId(revid)
                   // To prevent from matrix deletion then addition,  delete the parentid from the database (it should be here because of the older to newer sorting)
-                  if (revision.isUndo(revid)) {
-                    logger.debug(pageTitle + " => '" + revid + "' is an undo revision of '" + parentId + "'")
-                    val sql = "delete from revisions where id=" + parentId
-                    db.syncExecute(sql)
-                  }
                   val sql = "insert into revisions values(" + revid + ", " + parentId + ", " + "\"" + pageTitle.replaceAll("\"", "") + "\", " + "\"" + revision.getDate(revid).get + "\", " + "\"" + pageLang + "\", " + "\"" + revision.getAuthor(revid).replaceAll("\"", "") + "\")"
                   try {
                     db.syncExecute(sql)
@@ -86,8 +81,16 @@ class Revisions(api : MediaWikiAPI, db : DataBase, time : String, wikitextPath :
                     //logger.debug(pageTitle + " => '" + revid + "' wikitext retreived and saved") // Too much verbose
                   } else {
                     val sql = "delete from revisions where id=" + revid
-                    db.syncExecute(sql)
-                    logger.warn(pageTitle + " => '" + revid + "' is a blank revision. deleted.")
+                    try {
+                      db.syncExecute(sql)
+                      logger.warn(pageTitle + " => '" + revid + "' is a blank revision. deleted.")
+                    } catch {
+                      case e: Exception => {
+                        database_logger.error(pageTitle + " => " + e.getLocalizedMessage)
+                        database_logger.error("SQL command => " + sql)
+                        database_logger.error(e.getStackTraceString)
+                      }
+                    }
                   }
                 }
               }
