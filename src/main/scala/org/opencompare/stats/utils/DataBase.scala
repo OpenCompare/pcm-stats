@@ -28,14 +28,14 @@ class DataBase(path : String) extends DatabaseInterface {
     "id LONG PRIMARY KEY",
     "parentId LONG REFERENCES revisions(id) ON UPDATE CASCADE",
     "title TEXT",
-    "date DATE",
+    "date DATETIME",
     "lang TEXT",
     "author TEXT"
   )
   private val metricModel = List(
     "id LONG REFERENCES revisions(id) ON UPDATE CASCADE",
     "name TEXT",
-    "date DATE",
+    "date DATETIME",
     "compareToId LONG REFERENCES revisions(id) ON UPDATE CASCADE",
     "nbMatrices INTEGER",
     "changedMatrices INTEGER",

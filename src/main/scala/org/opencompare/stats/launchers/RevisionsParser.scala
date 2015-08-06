@@ -56,7 +56,7 @@ class RevisionsParser (api : MediaWikiAPI, lang : String, title : String, direct
         blackList.append(id)
       }
     })
-    ids - blankValues
+    ids.diff(blackList)
   }
 
   def getDate(revid: Int): Option[String] = {
