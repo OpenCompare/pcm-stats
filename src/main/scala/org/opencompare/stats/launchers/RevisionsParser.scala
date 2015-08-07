@@ -20,6 +20,8 @@ class RevisionsParser (api : MediaWikiAPI, lang : String, title : String, direct
   private var currentId = -1
   private val blankValues= List(
     "WP:AES",
+    "WP:BLANK",
+    "WP:PAGEBLANKING",
     "WP:AUTOSUMM"
   )
   private val undoValues= List(

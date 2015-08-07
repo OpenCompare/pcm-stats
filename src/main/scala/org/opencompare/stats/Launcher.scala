@@ -5,8 +5,8 @@ import java.time.format.DateTimeFormatter
 
 import org.apache.log4j.{Level, Logger, FileAppender}
 import org.opencompare.io.wikipedia.io.MediaWikiAPI
-import org.opencompare.stats.launchers.{Metrics, Revisions}
-import org.opencompare.stats.utils.{CustomLoggerLayout, DataBase}
+import org.opencompare.stats.launchers.{MetricsProcess, Revisions}
+import org.opencompare.stats.utils.{CustomLoggerLayout, DatabaseSqlite}
 
 /**
  * Created by smangin on 03/08/15.
@@ -33,13 +33,11 @@ object Launcher extends App {
   // Parser
   val api = synchronized(new MediaWikiAPI("https", "wikipedia.org"))
   // Database
-  val db = new DataBase(path + "metrics.db")
+  val db = new DatabaseSqlite(path + "metrics.db")
 
   val revisions = new Revisions(api, db, cTime.format(formatter), wikitextPath, fh, level)
-  val metrics = new Metrics(api, db, cTime.format(formatter), wikitextPath, fh, level)
-  logger.info("Launcher starts the revision process...")
+  val metrics = new MetricsProcess(api, db, cTime.format(formatter), wikitextPath, fh, level)
   revisions.start()
-  logger.info("Launcher starts the metrics process...")
   metrics.start()
   logger.info("Launcher has stopped.")
 }

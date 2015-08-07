@@ -12,6 +12,7 @@
         <scala.version>2.11.6</scala.version>
         <sqlite4java.version>1.0.392</sqlite4java.version>
         <sqlite4java.debug>true</sqlite4java.debug>
+        <sqlite4java.library.path>${project.build.directory}/lib</sqlite4java.library.path>
     </properties>
 
     <dependencies>
@@ -89,7 +90,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>org.opencompare.stats.LauncherRevisions$</mainClass>
+                            <mainClass>org.opencompare.stats.Launcher$</mainClass>
                         </manifest>
                     </archive>
                 </configuration>
@@ -131,24 +132,12 @@
                                     <version>${sqlite4java.version}</version>
                                     <type>so</type>
                                     <overWrite>true</overWrite>
-                                    <outputDirectory>${java.library.path}</outputDirectory>
+                                    <outputDirectory>${project.build.directory}/lib</outputDirectory>
                                 </artifactItem>
                             </artifactItems>
                         </configuration>
                     </execution>
                 </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <configuration>
-                    <systemProperties>
-                        <property>
-                            <name>sqlite4java.library.path</name>
-                            <value>${project.build.directory}/lib</value>
-                        </property>
-                    </systemProperties>
-                </configuration>
             </plugin>
         </plugins>
     </build>

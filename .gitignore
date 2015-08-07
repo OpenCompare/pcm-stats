@@ -1,6 +1,5 @@
 target
 metrics
-r-metrics
 .idea
 *.iml
 .idea_modules

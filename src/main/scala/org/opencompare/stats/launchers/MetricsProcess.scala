@@ -2,30 +2,32 @@ package org.opencompare.stats.launchers
 
 import org.apache.log4j.{FileAppender, Level, Logger}
 import org.opencompare.io.wikipedia.io.MediaWikiAPI
-import org.opencompare.stats.utils.DataBase
+import org.opencompare.stats.utils.DatabaseSqlite
 
 /**
  * Created by smangin on 23/07/15.
  */
-class Metrics(api : MediaWikiAPI, db : DataBase, time : String, wikitextPath : String, appender : FileAppender, level : Level) {
+class MetricsProcess(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitextPath : String, appender : FileAppender, level : Level) {
 
   private val logger = Logger.getLogger("metrics")
   logger.addAppender(appender)
   logger.setLevel(level)
 
+  val groupThread = new ThreadGroup("metrics")
+
+  val revisions = db.getRevisions()
+  val pages = revisions.groupBy(line => {
+    line.get("title").get
+  })
+  var pageDone = synchronized[Int](1)
+  var revisionDone = synchronized[Int](0)
+  val pagesSize = pages.size
+
   def start(): Unit = {
     db.createTableMetrics()
 
-    val revisions = db.getRevisions()
-    val pages = revisions.groupBy(line => {
-      line.get("title").get
-    })
-    var pageDone = synchronized[Int](1)
-    var revisionDone = synchronized[Int](0)
-    val pagesSize = pages.size
     logger.debug("Process => Nb. total pages: " + pagesSize)
     logger.debug("Provess => Nb. total revisions: " + revisions.size)
-    val groupThread = new ThreadGroup("metrics")
     pages.foreach(page => {
       val title = page._1.toString
       val content = synchronized(page._2)

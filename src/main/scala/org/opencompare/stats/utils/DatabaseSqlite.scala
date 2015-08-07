@@ -12,7 +12,7 @@ import scala.collection.mutable.ListBuffer
 /**
  * Created by smangin on 31/07/15.
  */
-class DataBase(path : String) extends DatabaseInterface {
+class DatabaseSqlite(path : String) extends DatabaseInterface {
 
   // Time
   val cTime = LocalDateTime.now()
@@ -35,7 +35,7 @@ class DataBase(path : String) extends DatabaseInterface {
   private val metricModel = List(
     "id LONG REFERENCES revisions(id) ON UPDATE CASCADE",
     "name TEXT",
-    "date DATETIME",
+    "date DATE",
     "compareToId LONG REFERENCES revisions(id) ON UPDATE CASCADE",
     "nbMatrices INTEGER",
     "changedMatrices INTEGER",
