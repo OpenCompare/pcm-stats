@@ -122,22 +122,17 @@ class RevisionsComparator(db : DatabaseSqlite, api : MediaWikiAPI, wikitextPath 
   private def save(date : String, oldestContainersSize : Int, newestContainersSize : Int): Unit = {
     // Treatment by comparing previous line with current one to populate previous container line
     val diff = newestPcm.diff(oldestPcm, new ComplexePCMElementComparator)
-    // Do not save empty values
-    if (diff.getFeaturesOnlyInPCM1.size() != 0 || diff.getFeaturesOnlyInPCM2.size() != 0
-      || diff.getProductsOnlyInPCM1.size() != 0 || diff.getProductsOnlyInPCM2.size() != 0
-      || (newestContainersSize - oldestContainersSize) != 0 || diff.getDifferingCells.size() != 0) {
-      db.execute("insert into metrics values(" +
-        newestId + ", " +
-        "'" + newestPcm.getName.replace("'", "") + "', " +
-        "'" + DateTime.parse(date) + "', " +
-        oldestId + ", " +
-        newestContainersSize + ", " +
-        (newestContainersSize - oldestContainersSize) + ", " +
-        diff.getFeaturesOnlyInPCM1.size() + ", " +
-        diff.getFeaturesOnlyInPCM2.size() + ", " +
-        diff.getProductsOnlyInPCM1.size() + ", " +
-        diff.getProductsOnlyInPCM2.size() + ", " +
-        diff.getDifferingCells.size() + ")")
-    }
+    db.execute("insert into metrics values(" +
+      newestId + ", " +
+      "'" + newestPcm.getName.replace("'", "") + "', " +
+      "'" + DateTime.parse(date) + "', " +
+      oldestId + ", " +
+      newestContainersSize + ", " +
+      (newestContainersSize - oldestContainersSize) + ", " +
+      diff.getFeaturesOnlyInPCM1.size() + ", " +
+      diff.getFeaturesOnlyInPCM2.size() + ", " +
+      diff.getProductsOnlyInPCM1.size() + ", " +
+      diff.getProductsOnlyInPCM2.size() + ", " +
+      diff.getDifferingCells.size() + ")")
   }
 }
