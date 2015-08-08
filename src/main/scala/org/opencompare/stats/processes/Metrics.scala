@@ -1,13 +1,13 @@
-package org.opencompare.stats.launchers
+package org.opencompare.stats.processes
 
 import org.apache.log4j.{FileAppender, Level, Logger}
 import org.opencompare.io.wikipedia.io.MediaWikiAPI
-import org.opencompare.stats.utils.DatabaseSqlite
+import org.opencompare.stats.utils.{RevisionsComparator, DatabaseSqlite}
 
 /**
  * Created by smangin on 23/07/15.
  */
-class MetricsProcess(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitextPath : String, appender : FileAppender, level : Level) {
+class Metrics(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitextPath : String, appender : FileAppender, level : Level) {
 
   private val logger = Logger.getLogger("metrics")
   logger.addAppender(appender)
@@ -24,8 +24,6 @@ class MetricsProcess(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wik
   val pagesSize = pages.size
 
   def start(): Unit = {
-    db.createTableMetrics()
-
     logger.debug("Process => Nb. total pages: " + pagesSize)
     logger.debug("Provess => Nb. total revisions: " + revisions.size)
     pages.foreach(page => {
@@ -36,7 +34,7 @@ class MetricsProcess(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wik
         override def run() {
           try {
             // your custom behavior here
-            val result: Map[String, Int] = comparator.process(title, content)
+            val result: Map[String, Int] = comparator.compare(title, content)
             val log = pageDone + "/" + pagesSize + "\t[" + result.apply("revisionsDone") + "/" + result.apply("revisionsSize") + "\trev.]\t" + title
             if (result.apply("revisionsDone") == result.apply("revisionsSize")) {
               logger.info(log)
@@ -62,7 +60,7 @@ class MetricsProcess(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wik
     logger.debug("Process => Nb. pages done: " + pageDone)
     logger.debug("Provess => Nb. revisions done: " + revisionDone)
     logger.debug("Waiting for database threads to terminate...")
-    while (db.hasThreadsLeft()) {}
+    while (db.isBusy()) {}
     val done = db.getMetrics()
     logger.debug("Database => Nb. comparisons done: " + done.size)
     logger.debug("process finished.")

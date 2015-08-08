@@ -7,12 +7,12 @@ package org.opencompare.stats.interfaces
 trait DatabaseInterface {
 
   // create the schema
-  def createTableRevisions()
-  def createTableMetrics()
+  def initialize(): DatabaseInterface
   def getRevisions(): List[Map[String, Any]]
   def getMetrics(): List[Map[String, Any]]
-  def syncExecute(sql : String)
-  def hasThreadsLeft(): Boolean
+  def execute(sql : String)
+  def isBusy(): Boolean
   def revisionExists(id: Int): Boolean
+  def metricExists(id: Int, parentid: Int, title : String): Boolean
 
 }

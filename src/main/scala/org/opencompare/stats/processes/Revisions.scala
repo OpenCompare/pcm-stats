@@ -1,11 +1,11 @@
-package org.opencompare.stats.launchers
+package org.opencompare.stats.processes
 
 import java.io.{File, FileWriter}
 
 import com.github.tototoshi.csv.CSVReader
 import org.apache.log4j.{Level, FileAppender, Logger}
 import org.opencompare.io.wikipedia.io.MediaWikiAPI
-import org.opencompare.stats.utils.{CustomCsvFormat, DatabaseSqlite}
+import org.opencompare.stats.utils.{RevisionsParser, CustomCsvFormat, DatabaseSqlite}
 
 /**
  * Created by smangin on 23/07/15.
@@ -34,9 +34,6 @@ class Revisions(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitext
   private val groupThread = new ThreadGroup("revisions")
 
   def start() {
-    if (!new File(wikitextPath).exists()) {
-      db.createTableRevisions()
-    }
     // Parse wikipedia page list
     groups.foreach(group => {
       var pageTitle = group.head.get("Title").get
@@ -62,7 +59,7 @@ class Revisions(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitext
                   // To prevent from matrix deletion then addition,  delete the parentid from the database (it should be here because of the older to newer sorting)
                   val sql = "insert into revisions values(" + revid + ", " + parentId + ", " + "\"" + pageTitle.replaceAll("\"", "") + "\", " + "\"" + revision.getDate(revid).get + "\", " + "\"" + pageLang + "\", " + "\"" + revision.getAuthor(revid).replaceAll("\"", "") + "\")"
                   try {
-                    db.syncExecute(sql)
+                    db.execute(sql)
                     revisionsDone += 1
                     newRevisions += 1
                   } catch {
@@ -93,7 +90,7 @@ class Revisions(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitext
                   } else {
                     val sql = "delete from revisions where id=" + revid
                     try {
-                      db.syncExecute(sql)
+                      db.execute(sql)
                       logger.warn(pageTitle + " -- " + revid + " -- " + " is a blank revision. deleted.")
                     } catch {
                       case e: Exception => {
@@ -127,7 +124,7 @@ class Revisions(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitext
     logger.info("Nb. revisions done: " + revisionsDone)
     logger.info("Nb. new revisions: " + newRevisions)
     logger.debug("Waiting for database threads to terminate...")
-    while (db.hasThreadsLeft()) {}
+    while (db.isBusy()) {}
     val dbRevisions = db.getRevisions()
     database_logger.info("Nb. pages: " + dbRevisions.groupBy(line => line.apply("title")).toList.size)
     database_logger.info("Nb. revisions: " + dbRevisions.size)

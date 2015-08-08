@@ -46,26 +46,16 @@ class DatabaseSqlite(path : String) extends DatabaseInterface {
     "changedCells INTEGER"
   )
 
-  // create the schema
-  def createTableRevisions() {
+  def initialize(): DatabaseSqlite = {
     val job = new SQLiteJob[Unit]() {
       protected def job(connection : SQLiteConnection): Unit = {
         // this method is called from database thread and passes the connection
-        connection.exec("drop table if exists revisions")
-        connection.exec("create table revisions (" + revisionModel.mkString(", ") + ")")
+        connection.exec("create table if not exists revisions (" + revisionModel.mkString(", ") + ")")
+        connection.exec("create table if not exists metrics (" + metricModel.mkString(", ") + ")")
       }
     }
     queue.execute[Unit, SQLiteJob[Unit]](job)
-  }
-  def createTableMetrics() {
-    val job = new SQLiteJob[Unit]() {
-      protected def job(connection : SQLiteConnection): Unit = {
-        // this method is called from database thread and passes the connection
-        connection.exec("drop table if exists metrics")
-        connection.exec("create table metrics (" + metricModel.mkString(", ") + ")")
-      }
-    }
-    queue.execute[Unit, SQLiteJob[Unit]](job)
+    this
   }
 
   def getRevisions(): List[Map[String, Any]] = {
@@ -112,7 +102,7 @@ class DatabaseSqlite(path : String) extends DatabaseInterface {
     objects.toList
   }
 
-  def syncExecute(sql : String) {
+  def execute(sql : String) {
     val job = new SQLiteJob[Unit]() {
       protected def job(connection : SQLiteConnection): Unit = {
         // this method is called from database thread and passes the connection
@@ -123,7 +113,7 @@ class DatabaseSqlite(path : String) extends DatabaseInterface {
     queue.execute[Unit, SQLiteJob[Unit]](job)
   }
 
-  def hasThreadsLeft(): Boolean = {
+  def isBusy(): Boolean = {
     queue.isStopped
   }
 

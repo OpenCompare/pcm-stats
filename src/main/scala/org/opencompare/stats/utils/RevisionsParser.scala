@@ -1,4 +1,4 @@
-package org.opencompare.stats.launchers
+package org.opencompare.stats.utils
 
 import org.opencompare.io.wikipedia.io.MediaWikiAPI
 import org.opencompare.stats.interfaces.RevisionsParserInterface

@@ -1,11 +1,10 @@
-package org.opencompare.stats.launchers
+package org.opencompare.stats.utils
 
 import org.apache.log4j.{FileAppender, Level, Logger}
 import org.joda.time.DateTime
 import org.opencompare.api.java.util.ComplexePCMElementComparator
 import org.opencompare.api.java.{PCM, PCMContainer}
 import org.opencompare.io.wikipedia.io.{MediaWikiAPI, WikiTextLoader}
-import org.opencompare.stats.utils.{DatabaseSqlite, WikiTextKeepTemplateProcessor}
 
 import scala.collection.JavaConversions._
 import scala.io.Source
@@ -34,7 +33,7 @@ class RevisionsComparator(db : DatabaseSqlite, api : MediaWikiAPI, wikitextPath 
 
   private val wikiLoader = new WikiTextLoader(new WikiTextKeepTemplateProcessor(api))
 
-  def process(title : String, content : List[Map[String, Any]]): Map[String, Int] = {
+  def compare(title : String, content : List[Map[String, Any]]): Map[String, Int] = {
     var revisionsSize = content.size
     // Sort by revision Id newer to older
     content.sortBy(line => line.apply("id").asInstanceOf[Int]).reverse.foreach(line => {
@@ -123,18 +122,22 @@ class RevisionsComparator(db : DatabaseSqlite, api : MediaWikiAPI, wikitextPath 
   private def save(date : String, oldestContainersSize : Int, newestContainersSize : Int): Unit = {
     // Treatment by comparing previous line with current one to populate previous container line
     val diff = newestPcm.diff(oldestPcm, new ComplexePCMElementComparator)
-    db.syncExecute("insert into metrics values(" +
-      newestId+", "+
-      "'"+newestPcm.getName.replace("'", "")+"', "+
-      "'" + DateTime.parse(date) + "', "+
-      oldestId+", "+
-      newestContainersSize+", "+
-      (newestContainersSize - oldestContainersSize)+", "+
-      diff.getFeaturesOnlyInPCM1.size()+", "+
-      diff.getFeaturesOnlyInPCM2.size()+", "+
-      diff.getProductsOnlyInPCM1.size()+", "+
-      diff.getProductsOnlyInPCM2.size()+", "+
-      diff.getDifferingCells.size()+")")
+    // Do not save empty values
+    if (diff.getFeaturesOnlyInPCM1.size() != 0 || diff.getFeaturesOnlyInPCM2.size() != 0
+      || diff.getProductsOnlyInPCM1.size() != 0 || diff.getProductsOnlyInPCM2.size() != 0
+      || (newestContainersSize - oldestContainersSize) != 0 || diff.getDifferingCells.size() != 0) {
+      db.execute("insert into metrics values(" +
+        newestId + ", " +
+        "'" + newestPcm.getName.replace("'", "") + "', " +
+        "'" + DateTime.parse(date) + "', " +
+        oldestId + ", " +
+        newestContainersSize + ", " +
+        (newestContainersSize - oldestContainersSize) + ", " +
+        diff.getFeaturesOnlyInPCM1.size() + ", " +
+        diff.getFeaturesOnlyInPCM2.size() + ", " +
+        diff.getProductsOnlyInPCM1.size() + ", " +
+        diff.getProductsOnlyInPCM2.size() + ", " +
+        diff.getDifferingCells.size() + ")")
+    }
   }
-
 }
