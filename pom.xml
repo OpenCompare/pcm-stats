@@ -90,7 +90,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>org.opencompare.stats.Launcher$</mainClass>
+                            <mainClass>org.opencompare.stats.Launcher</mainClass>
                         </manifest>
                     </archive>
                 </configuration>
