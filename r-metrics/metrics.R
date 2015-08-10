@@ -4,7 +4,7 @@ setwd(".")
 library(DBI)
 
 con <- dbConnect(RSQLite::SQLite(), "../metrics/metrics.db")
-# Firts make the request grouped by id to get changes
+# First make the request grouped by id to get changes
 res <- dbSendQuery(con, "SELECT strftime('%Y', date) AS year,
     SUM(newFeatures) AS nf,
     SUM(delFeatures) AS df,
@@ -13,7 +13,6 @@ res <- dbSendQuery(con, "SELECT strftime('%Y', date) AS year,
 FROM metrics m
 GROUP BY year")
 metrics <- fetch(res, n=-1)
-metrics
 
 # Nb matrices by date
 res <- dbSendQuery(con, "SELECT year, SUM(nm) as nm FROM (
@@ -22,7 +21,6 @@ res <- dbSendQuery(con, "SELECT year, SUM(nm) as nm FROM (
     GROUP BY r.title, year)
 GROUP BY year")
 matrices <- fetch(res, n=-1)
-matrices
 
 # convert column to specific type
 metrics$year <- as.numeric(metrics$year)
@@ -32,7 +30,7 @@ metrics$np <- metrics$np
 metrics$dp <- metrics$dp
 
 # Start PNG device driver to save output to figure.png
-png(filename="metrics.png", height=800, width=800, bg="white")
+png(filename="metrics.png", height=1200, width=1000, bg="white")
 
 # Define colors to be used
 plot_colors <- c("green", "red", "blue", "orange", "black")
@@ -40,17 +38,23 @@ plot_colors <- c("green", "red", "blue", "orange", "black")
 # get the range for the x and y axis
 daterange <- range(metrics$year)
 ymax <- max(metrics$np, metrics$dp, metrics$nf, metrics$df, matrices$nm)
+xticks = seq(daterange[1], daterange[2], 1)
+yticks = c(1, 2, 5, 10, 30, 100, 300, 1000, 3000, 10000, 30000, 50000, 100000, 150000, 200000, 250000, 300000)
+lablist.x <- as.vector(xticks)
+lablist.y <- as.vector(yticks)
 column_names <- c("New products", "Deleted products", "New features", "Deleted features", "Nb matrices")
 
 # set up the plot
-plot(NA, ann=F, ylim = c(0.9, ymax), xlim = daterange, log ="y")
-axis(2, at=seq(0, ymax, 50))
+plot(NA, ann=F, ylim = c(0.9, ymax), xlim = daterange, log ="y", panel.first=abline(v = xticks, h = yticks, lty=1, col="gray"), xaxt = "n", yaxt="n")
+axis(1, at=xticks, labels = lablist.x)
+axis(2, at=yticks, labels = FALSE)
+text(y = yticks, par("usr")[1], labels = lablist.y, srt = 45, pos = 2, xpd = TRUE)
 
 # add lines
-lines(metrics$np ~ metrics$year, type="l", col=plot_colors[1], pch=21)
-lines(metrics$dp ~ metrics$year, type="l", col=plot_colors[2], pch=22)
-lines(metrics$nf ~ metrics$year, type="l", col=plot_colors[3], pch=23)
-lines(metrics$df ~ metrics$year, type="l", col=plot_colors[4], pch=24)
+lines(metrics$np ~ metrics$year, type="o", col=plot_colors[1], pch=21)
+lines(metrics$dp ~ metrics$year, type="o", col=plot_colors[2], pch=22)
+lines(metrics$nf ~ metrics$year, type="o", col=plot_colors[3], pch=23)
+lines(metrics$df ~ metrics$year, type="o", col=plot_colors[4], pch=24)
 lines(matrices$nm ~ matrices$year, type="o", col=plot_colors[5], pch=25)
 
 # add a title and subtitle
@@ -60,7 +64,7 @@ title("Wikipedia matrices evolution")
 title(xlab= "Date (years)", ylab= "Quantity (units)")
 
 # add a legend
-legend("topleft", column_names, cex=0.8, col=plot_colors, pch=21:25)
+legend("bottomright", column_names, cex=0.8, col=plot_colors, pch=21:25)
 
 # Turn off device driver (to flush output to png)
 dev.off()
