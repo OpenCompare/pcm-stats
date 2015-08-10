@@ -10,7 +10,7 @@ res <- dbSendQuery(con, "SELECT date, count(id) as number FROM revisions GROUP B
 metrics <- dbFetch(res)
 
 # Start PNG device driver to save output to figure.png
-png(filename="revisions.png", height=800, width=800, bg="white")
+png(filename=toString(format(Sys.time(), "%Y-%m-%d %H-%M-%S revisions.png")), height=800, width=800, bg="white")
 
 # convert column to specific type
 metrics$date <- format(as.POSIXlt(metrics$date), "%Y-%m")
