@@ -28,8 +28,17 @@ Use of org.opencompare.{api, io} dependencies. Especially `MediaWikipediaApi` cl
 
 ### Compute metrics to obtain graphical interpretation
 
-Use of R to process the graphical representation of metrics
+Use of R to process the graphical representation of metrics.
+
+![Example of metrics graph output](metrics.png)
+
 
 ## Launch processes
 
-The main class is `org.opencompare.stats.Launcher` which launch sequentially, the two main processes `org.opencompare.stats.launchers.Revisions`, `org.opencompare.stats.launchers.Metrics`.
+The main class is `org.opencompare.stats.Launcher` which launch sequentially, the two main processes `org.opencompare.stats.processes.Revisions`, `org.opencompare.stats.processes.Metrics`.
+
+Once main processes has finished, launch the R script to process grahpical representation.
+
+    cd r-metrics
+    Rscript metrics.R
+    Rscript revisions.R
