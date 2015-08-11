@@ -1,34 +1,48 @@
  #!/usr/bin/env Rscript
 
-setwd("~/IdeaProjects/OpenCompare/pcm-stats/r-metrics")
-#setwd(".")
+setwd(".")
 library(DBI)
 
 con <- dbConnect(RSQLite::SQLite(), "../metrics/metrics.db")
-dbListTables(con)
-res <- dbSendQuery(con, "SELECT date, count(id) as number FROM revisions GROUP BY date")
-metrics <- dbFetch(res)
+# Get all revisions by year
+res <- dbSendQuery(con, "SELECT strftime('%Y', date) as year, count(id) as number FROM revisions GROUP BY year")
+revisions <- dbFetch(res)
+
+# Secondly, get all matrices number by year
+res <- dbSendQuery(con, "SELECT year, SUM(nm) as nm FROM (
+    SELECT strftime('%Y', m.date) AS year, MAX(m.nbMatrices) as nm
+    FROM metrics m JOIN revisions r ON m.id = r.id
+    GROUP BY r.title, year)
+GROUP BY year")
+matrices <- fetch(res, n=-1)
 
 # Start PNG device driver to save output to figure.png
-png(filename=toString(format(Sys.time(), "%Y-%m-%d %H-%M-%S revisions.png")), height=800, width=800, bg="white")
+png(filename="revisions_matrices.png", height=1200, width=1000, bg="white")
 
-# convert column to specific type
-metrics$date <- format(as.POSIXlt(metrics$date), "%Y-%m")
-metrics <- rowsum(metrics$number, metrics$date)
-metrics
+# Define ticks and names
+column_names <- c("Matrices", "Revisions")
+
+# convert years as numeric
+revisions$year <- as.numeric(revisions$year)
+matrices$year <- as.numeric(matrices$year)
 
 # get the range for the x and y axis
-yrange <- range(metrics[,1])
-yrange
+daterange <- range(revisions$year, matrices$year)
+yrange <- range(revisions$number, matrices$nm)
 
 # set up the plot
-plot(metrics, ann=F, ylim = yrange, type="l")
+plot(NA, ann=F, xlim = daterange, ylim = yrange)
+lines(revisions$number ~ revisions$year, type="l", lty = "solid", col="orange", pch=15, lwd = 2)
+lines(matrices$nm ~ matrices$year, type="l", lty = "longdash", col="blue", pch=16, lwd = 2)
 
 # add a title and subtitle
-title("Wikipedia matrix revisions evolution")
+title("Wikipedia matrix evolution", "Matrices compared to revisions")
 
 # Label the x and y axes with dark green text
-title(xlab= "Date (years)", ylab= "Nb (unit)")
+title(xlab= "Date (years)", ylab= "Quantity (unit)")
+
+# add a legend
+legend("topleft", column_names, cex=1, col=c("orange", "blue"), pch=15:16)
 
 # Turn off device driver (to flush output to png)
 dev.off()

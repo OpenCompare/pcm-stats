@@ -16,7 +16,7 @@ import scala.io.Source
  * Compare each revisions with the closiest oldest one.
  *
  */
-class RevisionsComparator(db : DatabaseSqlite, api : MediaWikiAPI, wikitextPath : String, appender : FileAppender, level : Level) extends Thread {
+class RevisionsComparator(api : MediaWikiAPI, wikitextPath : String, appender : FileAppender, level : Level) extends Thread {
 
   private val logger = Logger.getLogger("metrics.comparator")
   logger.addAppender(appender)
@@ -30,10 +30,15 @@ class RevisionsComparator(db : DatabaseSqlite, api : MediaWikiAPI, wikitextPath 
   var newestContainers : List[PCMContainer] = null
   var revisionsDone = 0
   var wikitext = ""
+  val metrics : List[Map[String, Any]] = List()
 
   private val wikiLoader = new WikiTextLoader(new WikiTextKeepTemplateProcessor(api))
 
-  def compare(title : String, content : List[Map[String, Any]]): Map[String, Int] = {
+  def getMetrics(): List[Map[String, Any]] = {
+    metrics
+  }
+
+  def compare(title : String, content : List[Map[String, Any]]): Map[String, Any] = {
     var revisionsSize = content.size
     // Sort by revision Id newer to older
     content.sortBy(line => line.apply("id").asInstanceOf[Int]).reverse.foreach(line => {
@@ -48,7 +53,75 @@ class RevisionsComparator(db : DatabaseSqlite, api : MediaWikiAPI, wikitextPath 
         // Parse it through wikipedia miner
         oldestContainers = wikiLoader.mine(lang, wikitext, title).toList
         // The current (oldiest) container becomes the new container to process
-        newestContainers = process(oldestContainers, newestContainers, title, date)
+
+        //  It should avoid multiple unnamed matrix
+        if (oldestContainers.count(container => container.getPcm.getName == (title + " -   ")) <= 1) {
+
+          // If first line, go next
+          if (newestContainers != null) {
+            // Get containers size
+            val oldestContainersSize = oldestContainers.size
+            val newestContainersSize = newestContainers.size
+
+            // For each matrix in the page
+            for (previousContainer <- newestContainers) {
+              newestPcm = previousContainer.getPcm
+
+              // Search for a matrix in the current page only if more than 1 matrix inside
+              // FIXME : if the matrix is a new one, the results won't be objective
+              // cf: Comparison_of_Dewey_and_Library_of_Congress_subject_classification for matrix name change only through title
+              if (oldestContainersSize == 1) {
+                oldestContainer = Option[PCMContainer](oldestContainers.get(0))
+              } else {
+                // FIXME : A bug is present while parsing multiple matrices inside the same section
+                oldestContainer = oldestContainers.find(container => container.getPcm.getName == newestPcm.getName)
+              }
+
+              if (oldestContainer.isDefined) {
+                // If the matrix exists in the current line
+                oldestPcm = oldestContainer.get.getPcm
+                val diff = newestPcm.diff(oldestPcm, new ComplexePCMElementComparator)
+                metrics :+ Map[String, Any](
+                  ("id", newestId),
+                  ("name", newestPcm.getName),
+                  ("date", DateTime.parse(date)),
+                  ("parentId", oldestId),
+                  ("nbMatrices", newestContainersSize),
+                  ("diffMatrices", (newestContainersSize - oldestContainersSize)),
+                  ("newFeatures", diff.getFeaturesOnlyInPCM1.size()),
+                  ("delFeatures", diff.getFeaturesOnlyInPCM2.size()),
+                  ("newProduct", diff.getProductsOnlyInPCM1.size()),
+                  ("delProducts", diff.getProductsOnlyInPCM2.size()),
+                  ("changedCells", diff.getDifferingCells.size())
+                )
+              } else {
+                if (oldestContainers.size == 0) {
+                  logger.warn(title + " -- " + oldestId + " -- " + "first matrix '" + newestPcm.getName + "'")
+                  // New matrix
+                } else {
+                  logger.warn(title + " -- " + oldestId + " -- " + " deleted matrix '" + newestPcm.getName + "'")
+                  // Renamed or deleted matrix
+                }
+                // Otherwize populate metrics with the new matrix properties
+                // FIXME : find a better way to show the difference
+                //db.syncExecute("insert into metrics values(" +
+                //  previousId+", "+
+                //  "'"+previousPcm.getName.replace("'", "")+"', "+
+                //  currentId+", "+
+                //  previousContainersSize+", "+
+                //  currentContainersSize+", "+
+                //  1+", "+
+                //  0+", "+
+                //  0+", "+
+                //  0+", "+
+                //  0+", "+
+                //  0+")")
+              }
+            }
+          }
+          revisionsDone += 1
+        }
+        newestContainers = oldestContainers
       } catch {
         case e: Exception => {
           logger.error(title + " -- " + oldestId + " -- " + e.getLocalizedMessage)
@@ -57,82 +130,6 @@ class RevisionsComparator(db : DatabaseSqlite, api : MediaWikiAPI, wikitextPath 
       }
       newestId = oldestId
     })
-    Map[String, Int](("revisionsDone", revisionsDone), ("revisionsSize", revisionsSize))
-  }
-
-  private def process(oldestContainers : List[PCMContainer], newestContainers : List[PCMContainer], title : String, date : String): List[PCMContainer] = {
-
-    //  It should avoid multiple unnamed matrix
-    if (oldestContainers.count(container => container.getPcm.getName == (title + " -   ")) <= 1) {
-
-    // If first line, go next
-    if (newestContainers != null) {
-      // Get containers size
-      val oldestContainersSize = oldestContainers.size
-      val newestContainersSize = newestContainers.size
-
-      // For each matrix in the page
-      for (previousContainer <- newestContainers) {
-        newestPcm = previousContainer.getPcm
-
-        // Search for a matrix in the current page only if more than 1 matrix inside
-        // FIXME : if the matrix is a new one, the results won't be objective
-        // cf: Comparison_of_Dewey_and_Library_of_Congress_subject_classification for matrix name change only through title
-        if (oldestContainersSize == 1) {
-          oldestContainer = Option[PCMContainer](oldestContainers.get(0))
-        } else {
-          // FIXME : A bug is present while parsing multiple matrices inside the same section
-          oldestContainer = oldestContainers.find(container => container.getPcm.getName == newestPcm.getName)
-        }
-
-        if (oldestContainer.isDefined) {
-          // If the matrix exists in the current line
-          oldestPcm = oldestContainer.get.getPcm
-          save(date, oldestContainersSize, newestContainersSize)
-        } else {
-          if (oldestContainers.size == 0) {
-            logger.warn(title + " -- " + oldestId + " -- " + "first matrix '" + newestPcm.getName + "'")
-            // New matrix
-          } else {
-            logger.warn(title + " -- " + oldestId + " -- " + " deleted matrix '" + newestPcm.getName + "'")
-            // Renamed or deleted matrix
-          }
-          // Otherwize populate metrics with the new matrix properties
-          // FIXME : find a better way to show the difference
-          //db.syncExecute("insert into metrics values(" +
-          //  previousId+", "+
-          //  "'"+previousPcm.getName.replace("'", "")+"', "+
-          //  currentId+", "+
-          //  previousContainersSize+", "+
-          //  currentContainersSize+", "+
-          //  1+", "+
-          //  0+", "+
-          //  0+", "+
-          //  0+", "+
-          //  0+", "+
-          //  0+")")
-        }
-      }
-    }
-      revisionsDone += 1
-    }
-    oldestContainers
-  }
-
-  private def save(date : String, oldestContainersSize : Int, newestContainersSize : Int): Unit = {
-    // Treatment by comparing previous line with current one to populate previous container line
-    val diff = newestPcm.diff(oldestPcm, new ComplexePCMElementComparator)
-    db.execute("insert into metrics values(" +
-      newestId + ", " +
-      "'" + newestPcm.getName.replace("'", "") + "', " +
-      "'" + DateTime.parse(date) + "', " +
-      oldestId + ", " +
-      newestContainersSize + ", " +
-      (newestContainersSize - oldestContainersSize) + ", " +
-      diff.getFeaturesOnlyInPCM1.size() + ", " +
-      diff.getFeaturesOnlyInPCM2.size() + ", " +
-      diff.getProductsOnlyInPCM1.size() + ", " +
-      diff.getProductsOnlyInPCM2.size() + ", " +
-      diff.getDifferingCells.size() + ")")
+    Map[String, Any](("revisionsDone", revisionsDone), ("revisionsSize", revisionsSize))
   }
 }

@@ -29,20 +29,34 @@ class Metrics(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitextPa
     pages.foreach(page => {
       val title = page._1.toString
       val content = synchronized(page._2)
-      val comparator = new RevisionsComparator(db, api, wikitextPath, appender, level)
+      val comparator = new RevisionsComparator(api, wikitextPath, appender, level)
       val thread = new Thread(groupThread, title) {
         override def run() {
           try {
             // your custom behavior here
-            val result: Map[String, Int] = comparator.compare(title, content)
-            val log = pageDone + "/" + pagesSize + "\t[" + result.apply("revisionsDone") + "/" + result.apply("revisionsSize") + "\trev.]\t" + title
-            if (result.apply("revisionsDone") == result.apply("revisionsSize")) {
+            val result: Map[String, Any] = comparator.compare(title, content)
+            for (line : Map[String, Any] <- comparator.getMetrics()) {
+              db.execute("insert into metrics values(" +
+                line.apply("id").asInstanceOf[Int] + ", " +
+                "'" + line.apply("name").asInstanceOf[String].replace("'", "") + "', " +
+                "'" + line.apply("date").asInstanceOf[String] + "', " +
+                line.apply("parentId").asInstanceOf[Int] + ", " +
+                line.apply("nbMatrices").asInstanceOf[Int] + ", " +
+                line.apply("diffMatrices").asInstanceOf[Int] + ", " +
+                line.apply("newFeatures").asInstanceOf[Int] + ", " +
+                line.apply("delFeatures").asInstanceOf[Int] + ", " +
+                line.apply("newProducts").asInstanceOf[Int] + ", " +
+                line.apply("delProducts").asInstanceOf[Int] + ", " +
+                line.apply("changedCells").asInstanceOf[Int] + ")")
+            }
+            val log = pageDone + "/" + pagesSize + "\t[" + result.apply("revisionsDone").asInstanceOf[Int] + "/" + result.apply("revisionsSize").asInstanceOf[Int] + "\trev.]\t" + title
+            if (result.apply("revisionsDone").asInstanceOf[Int] == result.apply("revisionsSize").asInstanceOf[Int]) {
               logger.info(log)
             } else {
               logger.warn(log)
             }
             pageDone += 1
-            revisionDone += result.apply("revisionsDone")
+            revisionDone += result.apply("revisionsDone").asInstanceOf[Int]
           } catch {
             case e: Exception => {
               logger.error(title + " => " + e.getLocalizedMessage)
