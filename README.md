@@ -24,7 +24,7 @@ Sqlite has been firstly used to prevent issues and data loss from originaly csv 
 
 ### Main launcher
 
-The main class is `org.opencompare.stats.Launcher` which launches sequentialy the two main processes.
+The main class is `org.opencompare.stats.Launcher` which launches sequentialy the two main processes as follow.
 
 ### Grab wikitext and metadatas from page revisions
 
