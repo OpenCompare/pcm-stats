@@ -1,6 +1,6 @@
 # pcm-stats
 
-Wikipedia metrics generation on page comparison tables
+Wikipedia metrics generation on comparison table pages
 
 ## Goal
 
