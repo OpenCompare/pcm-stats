@@ -20,6 +20,10 @@ Sqlite has been firstly used to prevent issues and data loss from originaly csv 
 
 ![iDatabase metamodel](db-diagram.png)
 
+### Backups
+
+Before each launch, the database is saved, postfixed by the date of the day.
+
 ## Functional processes
 
 ### Main launcher
