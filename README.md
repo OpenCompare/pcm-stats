@@ -61,7 +61,7 @@ This process uses several other classes such as :
 
 #### Performance issues
 
-Like the wikitext grabbing process, a line previously created will not be reprocessed to save database access by using a simple SELECT instead of an INSERT.
+Like the wikitext grabbing process, a line previously created will not be reprocessed to save database access by using of a CONSTRAINTS on several fields (generates a great amount of threads exceptions, has to be fixed soon) and by using a simple SELECT instead of an INSERT.
 
 ### Compute metrics to obtain graphical interpretation
 
