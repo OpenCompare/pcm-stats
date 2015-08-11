@@ -31,12 +31,14 @@ The main class is `org.opencompare.stats.Launcher` which launches sequentialy th
 This task is done by `org.opencompare.stats.processes.Revisions` class. It reads a custom csv page list to know wich page to parse.
 
 This process uses several other classes such as :
+
   - `org.opencompare.stats.utils.RevisionsParser` helps to provide an easiest way to retreive revisions metadata
   - `org.opencompare.io.wikipedia.io.MediaWikipediaApi` provides a scala API interface to the Wikipedia API
 
 #### Performance issues and resources
 
 Due to performance issues (tested in a quadcore AMD processor with 8GB RAM, it lasts 7 hours), it's preferable to add these options to the JVM (see http://www.oracle.com/technetwork/java/javase/tech/vmoptions-jsp-140102.html for further explaination) to ensure any Java stack and GC limitation exceptions :
+
  - -Xmx5120m
  - -XX:-UseParallelOldGC
  - -XX:InitiatingHeapOccupancyPercent=10
@@ -49,16 +51,17 @@ If the output folder `metrics` is deleted, the script regenerates all the necess
 This task is done by `org.opencompare.stats.processes.Metrics` class.
 
 This process uses several other classes such as :
-  - `org.opencompare.stats.utils.RevisionsComparator` return the comparison between all matrices through revisions
-  - `org.opencompare.io.wikipedia.io.WikiTextLoader` return a `org.opencompare.api.java.PCMContainer` list containing revision matrices to be compared
+
+  - `org.opencompare.stats.utils.RevisionsComparator` returns the comparison between all matrices through revisions
+  - `org.opencompare.io.wikipedia.io.WikiTextLoader` returns a `org.opencompare.api.java.PCMContainer` list containing revision matrices to be compared
 
 #### Performance issues
 
-Like the grabbing process, a line previously created will not be reprocessed to save database access by using a simple SELECT instead of an INSERT).
+Like the wikitext grabbing process, a line previously created will not be reprocessed to save database access by using a simple SELECT instead of an INSERT.
 
 ### Compute metrics to obtain graphical interpretation
 
-Use of R to process the graphical representation of metrics. The script is located in `r-metrics`.
+Use of R to process the graphical representation of metrics. Scripts are located in `r-metrics`.
 
 ![Example of metrics graph output](metrics.png)
 
