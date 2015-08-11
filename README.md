@@ -1,4 +1,6 @@
-# pcm-stats (Wikipedia metrics generation on page comparison tables)
+# pcm-stats
+
+Wikipedia metrics generation on page comparison tables
 
 ## Goal
 
@@ -24,35 +26,35 @@ Sqlite has been firstly used to prevent issues and data loss from originaly csv 
 
 The main class is `org.opencompare.stats.Launcher` which launches sequentialy the two main processes.
 
-### Grab wikitext from page revisions
+### Grab wikitext and metadatas from page revisions
 
 This task is done by `org.opencompare.stats.processes.Revisions` class. It reads a custom csv page list to know wich page to parse.
-This process is splitted into several other classes such as :
-  
 
-#### Performance
+This process uses several other classes such as :
+  - `org.opencompare.stats.utils.RevisionsParser` helps to provide an easiest way to retreive revisions metadata
+  - `org.opencompare.io.wikipedia.io.MediaWikipediaApi` provides a scala API interface to the Wikipedia API
 
-##### Issues
+#### Performance issues and resources
 
 Due to performance issues (tested in a quadcore AMD processor with 8GB RAM, it lasts 7 hours), it's preferable to add these options to the JVM (see http://www.oracle.com/technetwork/java/javase/tech/vmoptions-jsp-140102.html for further explaination) to ensure any Java stack and GC limitation exceptions :
  - -Xmx5120m
  - -XX:-UseParallelOldGC
  - -XX:InitiatingHeapOccupancyPercent=10
 
-##### Resources
-
 To spare some Wikipedia servers resources (and already time consuption) when a revision has been processed, the revision's associated wikitext is not retreived next times the script is launched.
 If the output folder `metrics` is deleted, the script regenerates all the necessary files before processing.
 
-### Parse the wikitext to make metrics on matrix evolution
+### Parse the wikitext from revisions and make metrics !
 
 This task is done by `org.opencompare.stats.processes.Metrics` class.
 
-Use of org.opencompare.{api, io} dependencies. Especially `MediaWikipediaApi` class to retreive revisions data and metadatas.
+This process uses several other classes such as :
+  - `org.opencompare.stats.utils.RevisionsComparator` return the comparison between all matrices through revisions
+  - `org.opencompare.io.wikipedia.io.WikiTextLoader` return a `org.opencompare.api.java.PCMContainer` list containing revision matrices to be compared
 
 #### Performance issues
 
-Like the grabbing process, a line previously created will not be reprocessed.
+Like the grabbing process, a line previously created will not be reprocessed to save database access by using a simple SELECT instead of an INSERT).
 
 ### Compute metrics to obtain graphical interpretation
 
