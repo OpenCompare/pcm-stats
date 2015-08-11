@@ -7,6 +7,7 @@ import org.opencompare.api.java.{PCM, PCMContainer}
 import org.opencompare.io.wikipedia.io.{MediaWikiAPI, WikiTextLoader}
 
 import scala.collection.JavaConversions._
+import scala.collection.mutable.ListBuffer
 import scala.io.Source
 
 /**
@@ -23,14 +24,10 @@ class RevisionsComparator(api : MediaWikiAPI, wikitextPath : String, appender : 
   logger.setLevel(level)
   var newestId : Int = 0
   var oldestId : Int = 0
-  var oldestPcm : PCM = null
-  var newestPcm : PCM = null
   var oldestContainers : List[PCMContainer] = null
-  var oldestContainer : Option[PCMContainer] = null
   var newestContainers : List[PCMContainer] = null
   var revisionsDone = 0
-  var wikitext = ""
-  val metrics : List[Map[String, Any]] = List()
+  var metrics : List[Map[String, Any]] = _
 
   private val wikiLoader = new WikiTextLoader(new WikiTextKeepTemplateProcessor(api))
 
@@ -38,7 +35,8 @@ class RevisionsComparator(api : MediaWikiAPI, wikitextPath : String, appender : 
     metrics
   }
 
-  def compare(title : String, content : List[Map[String, Any]]): Map[String, Any] = {
+  def compare(title : String, content : List[Map[String, Any]]): Map[String, Int] = {
+    val currentMetrics : ListBuffer[Map[String, Any]]= ListBuffer()
     var revisionsSize = content.size
     // Sort by revision Id newer to older
     content.sortBy(line => line.apply("id").asInstanceOf[Int]).reverse.foreach(line => {
@@ -48,40 +46,61 @@ class RevisionsComparator(api : MediaWikiAPI, wikitextPath : String, appender : 
       try {
         // Get the wikitext code
         val wikifile = Source.fromFile(wikitextPath + title + "/" + oldestId + ".wikitext")
-        wikitext = wikifile.mkString
+        val wikitext = wikifile.mkString
         wikifile.close()
         // Parse it through wikipedia miner
         oldestContainers = wikiLoader.mine(lang, wikitext, title).toList
-        // The current (oldiest) container becomes the new container to process
+
+        var oldestPcm : PCM = null
+        var newestPcm : PCM = null
+        var oldestContainer : Option[PCMContainer] = null
+
+        // Get containers size
+        val oldestContainersSize = oldestContainers.size
+        // Get container unnamed matrix
+        val tooUnamedMatrices = oldestContainers.count(container => container.getPcm.getName == (title + " -   ")) > 1
 
         //  It should avoid multiple unnamed matrix
-        if (oldestContainers.count(container => container.getPcm.getName == (title + " -   ")) <= 1) {
+        if (!tooUnamedMatrices) {
 
-          // If first line, go next
+          // If not first line
           if (newestContainers != null) {
             // Get containers size
-            val oldestContainersSize = oldestContainers.size
             val newestContainersSize = newestContainers.size
 
             // For each matrix in the page
-            for (previousContainer <- newestContainers) {
-              newestPcm = previousContainer.getPcm
+            for (newestContainer <- newestContainers) {
+              newestPcm = newestContainer.getPcm
 
-              // Search for a matrix in the current page only if more than 1 matrix inside
-              // FIXME : if the matrix is a new one, the results won't be objective
-              // cf: Comparison_of_Dewey_and_Library_of_Congress_subject_classification for matrix name change only through title
-              if (oldestContainersSize == 1) {
+              // Search for a matrix in the current page only if matrix inside
+              if (oldestContainersSize >= 1) {
                 oldestContainer = Option[PCMContainer](oldestContainers.get(0))
-              } else {
-                // FIXME : A bug is present while parsing multiple matrices inside the same section
-                oldestContainer = oldestContainers.find(container => container.getPcm.getName == newestPcm.getName)
+                if (oldestContainersSize > 1) {
+                  // FIXME : A bug is present on opencompare while parsing multiple matrices inside the same section
+                  oldestContainer = oldestContainers.find(container => container.getPcm.getName == newestPcm.getName)
+                }
+
+                // If matrix has not been found
+                if (!oldestContainer.isDefined) {
+                  // It could have a different name (newly created section or removed)
+                  // so get its position on the oldest revision based on its actual position
+                  val newestContainerIndex = newestContainers.indexOf(newestContainer)
+                  try {
+                    oldestContainer = Option(oldestContainers.apply(newestContainerIndex))
+                  } catch {
+                    case _: Exception => {
+                      logger.fatal(title + " -- " + oldestId + " -- matrix not found")
+                    }
+                  }
+                }
               }
 
+              // If at least one matrix has been found
               if (oldestContainer.isDefined) {
                 // If the matrix exists in the current line
                 oldestPcm = oldestContainer.get.getPcm
                 val diff = newestPcm.diff(oldestPcm, new ComplexePCMElementComparator)
-                metrics :+ Map[String, Any](
+                currentMetrics.add(Map[String, Any](
                   ("id", newestId),
                   ("name", newestPcm.getName),
                   ("date", DateTime.parse(date)),
@@ -90,37 +109,36 @@ class RevisionsComparator(api : MediaWikiAPI, wikitextPath : String, appender : 
                   ("diffMatrices", (newestContainersSize - oldestContainersSize)),
                   ("newFeatures", diff.getFeaturesOnlyInPCM1.size()),
                   ("delFeatures", diff.getFeaturesOnlyInPCM2.size()),
-                  ("newProduct", diff.getProductsOnlyInPCM1.size()),
+                  ("newProducts", diff.getProductsOnlyInPCM1.size()),
                   ("delProducts", diff.getProductsOnlyInPCM2.size()),
                   ("changedCells", diff.getDifferingCells.size())
-                )
-              } else {
-                if (oldestContainers.size == 0) {
-                  logger.warn(title + " -- " + oldestId + " -- " + "first matrix '" + newestPcm.getName + "'")
-                  // New matrix
-                } else {
-                  logger.warn(title + " -- " + oldestId + " -- " + " deleted matrix '" + newestPcm.getName + "'")
-                  // Renamed or deleted matrix
-                }
-                // Otherwize populate metrics with the new matrix properties
-                // FIXME : find a better way to show the difference
-                //db.syncExecute("insert into metrics values(" +
-                //  previousId+", "+
-                //  "'"+previousPcm.getName.replace("'", "")+"', "+
-                //  currentId+", "+
-                //  previousContainersSize+", "+
-                //  currentContainersSize+", "+
-                //  1+", "+
-                //  0+", "+
-                //  0+", "+
-                //  0+", "+
-                //  0+", "+
-                //  0+")")
+                ))
               }
+            }
+          } else {
+            logger.debug(title + " -- " + oldestId + " -- new page with " + oldestContainersSize + " matrix(ces)")
+            // First line so new matrices
+            for (container <- oldestContainers) {
+              oldestPcm = container.getPcm
+              currentMetrics.add(Map[String, Any](
+                ("id", oldestId),
+                ("name", oldestPcm.getName),
+                ("date", DateTime.parse(date)),
+                ("parentId", 0),
+                ("nbMatrices", oldestContainersSize),
+                ("diffMatrices", oldestContainersSize),
+                ("newFeatures", oldestPcm.getConcreteFeatures.size()),
+                ("delFeatures", 0),
+                ("newProducts", oldestPcm.getProducts.size()),
+                ("delProducts", 0),
+                ("changedCells", 0)
+              ))
             }
           }
           revisionsDone += 1
         }
+        // The current (oldiest) container becomes the new container to compare
+        // In short terms, next line ;)
         newestContainers = oldestContainers
       } catch {
         case e: Exception => {
@@ -128,8 +146,12 @@ class RevisionsComparator(api : MediaWikiAPI, wikitextPath : String, appender : 
           logger.error(e.getStackTraceString)
         }
       }
+      // Next revision
       newestId = oldestId
     })
-    Map[String, Any](("revisionsDone", revisionsDone), ("revisionsSize", revisionsSize))
+    // Append the lines to create
+    metrics = currentMetrics.toList
+    // And return the results
+    Map[String, Int](("revisionsDone", revisionsDone), ("revisionsSize", revisionsSize))
   }
 }

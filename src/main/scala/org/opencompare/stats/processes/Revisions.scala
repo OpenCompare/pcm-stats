@@ -4,6 +4,7 @@ import java.io.{File, FileWriter}
 
 import com.github.tototoshi.csv.CSVReader
 import org.apache.log4j.{Level, FileAppender, Logger}
+import org.joda.time.DateTime
 import org.opencompare.io.wikipedia.io.MediaWikiAPI
 import org.opencompare.stats.utils.{RevisionsParser, CustomCsvFormat, DatabaseSqlite}
 
@@ -42,7 +43,7 @@ class Revisions(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitext
           group.foreach(line => {
             val pageLang = line.get("Lang").get
             pageTitle = line.get("Title").get
-            val file = wikitextPath + pageTitle + "/"
+            val file = wikitextPath + pageTitle.replace("'", "") + "/"
             new File(file).mkdirs()
             try {
               val revision = new RevisionsParser(api, pageLang, pageTitle, "older")
@@ -51,24 +52,23 @@ class Revisions(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitext
                 // Keep an eye on already existing revisions
                 val fileName = file + revid + ".wikitext"
                 val revisionFile = new File(fileName)
-                if (db.revisionExists(revid)) {
-                  //logger.debug(pageTitle + " with id " + revid + " already done !") // Too much verbose
+                val parentId = revision.getParentId(revid)
+                // To prevent from matrix deletion then addition,  delete the parentid from the database (it should be here because of the older to newer sorting)
+                try {
+                  db.insertRevision(Map(
+                    ("id", revid),
+                    ("title", pageTitle),
+                    ("date", DateTime.parse(revision.getDate(revid).get)),
+                    ("author", revision.getAuthor(revid)),
+                    ("parentId", parentId),
+                    ("lang", pageLang)
+                  ))
                   revisionsDone += 1
-                } else {
-                  val parentId = revision.getParentId(revid)
-                  // To prevent from matrix deletion then addition,  delete the parentid from the database (it should be here because of the older to newer sorting)
-                  val sql = "insert into revisions values(" + revid + ", " + parentId + ", " + "\"" + pageTitle.replaceAll("\"", "") + "\", " + "\"" + revision.getDate(revid).get + "\", " + "\"" + pageLang + "\", " + "\"" + revision.getAuthor(revid).replaceAll("\"", "") + "\")"
-                  try {
-                    db.execute(sql)
-                    revisionsDone += 1
-                    newRevisions += 1
-                  } catch {
-                    case e: Exception => {
-                      database_logger.error(pageTitle + " -- " + revid + " -- " + e.getLocalizedMessage)
-                      database_logger.error("SQL command => " + sql)
-                      database_logger.error("Wikitext filename => " + fileName)
-                      database_logger.error(e.getStackTraceString)
-                    }
+                  newRevisions += 1
+                } catch {
+                  case e: Exception => {
+                    database_logger.error(pageTitle + " -- " + revid + " -- " + e.getLocalizedMessage)
+                    database_logger.error(e.getStackTraceString)
                   }
                 }
                 if (!revisionFile.exists() || revisionFile.length() == 0) {
@@ -88,14 +88,12 @@ class Revisions(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitext
                     wikiWriter.close()
                     //logger.debug(pageTitle + " => '" + revid + "' wikitext retreived and saved") // Too much verbose
                   } else {
-                    val sql = "delete from revisions where id=" + revid
                     try {
-                      db.execute(sql)
+                      db.deleteRevision(revid)
                       logger.warn(pageTitle + " -- " + revid + " -- " + " is a blank revision. deleted.")
                     } catch {
                       case e: Exception => {
                         database_logger.error(pageTitle + " -- " + revid + " -- " + e.getLocalizedMessage)
-                        database_logger.error("SQL command => " + sql)
                         database_logger.error(e.getStackTraceString)
                       }
                     }

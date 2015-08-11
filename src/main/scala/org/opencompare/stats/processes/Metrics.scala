@@ -2,7 +2,7 @@ package org.opencompare.stats.processes
 
 import org.apache.log4j.{FileAppender, Level, Logger}
 import org.opencompare.io.wikipedia.io.MediaWikiAPI
-import org.opencompare.stats.utils.{RevisionsComparator, DatabaseSqlite}
+import org.opencompare.stats.utils.{DatabaseSqlite, RevisionsComparator}
 
 /**
  * Created by smangin on 23/07/15.
@@ -34,23 +34,19 @@ class Metrics(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitextPa
         override def run() {
           try {
             // your custom behavior here
-            val result: Map[String, Any] = comparator.compare(title, content)
+            val result: Map[String, Int] = comparator.compare(title, content)
             for (line : Map[String, Any] <- comparator.getMetrics()) {
-              db.execute("insert into metrics values(" +
-                line.apply("id").asInstanceOf[Int] + ", " +
-                "'" + line.apply("name").asInstanceOf[String].replace("'", "") + "', " +
-                "'" + line.apply("date").asInstanceOf[String] + "', " +
-                line.apply("parentId").asInstanceOf[Int] + ", " +
-                line.apply("nbMatrices").asInstanceOf[Int] + ", " +
-                line.apply("diffMatrices").asInstanceOf[Int] + ", " +
-                line.apply("newFeatures").asInstanceOf[Int] + ", " +
-                line.apply("delFeatures").asInstanceOf[Int] + ", " +
-                line.apply("newProducts").asInstanceOf[Int] + ", " +
-                line.apply("delProducts").asInstanceOf[Int] + ", " +
-                line.apply("changedCells").asInstanceOf[Int] + ")")
+              try {
+                db.insertMetrics(line)
+              } catch {
+                case e: Exception => {
+                  logger.error(title + " -- " + line.apply("id").asInstanceOf[Int] + " -- " + e.getLocalizedMessage)
+                  logger.error(e.getStackTraceString)
+                }
+              }
             }
-            val log = pageDone + "/" + pagesSize + "\t[" + result.apply("revisionsDone").asInstanceOf[Int] + "/" + result.apply("revisionsSize").asInstanceOf[Int] + "\trev.]\t" + title
-            if (result.apply("revisionsDone").asInstanceOf[Int] == result.apply("revisionsSize").asInstanceOf[Int]) {
+            val log = pageDone + "/" + pagesSize + "\t[" + result.apply("revisionsDone") + "/" + result.apply("revisionsSize") + "\trev.]\t" + title
+            if (result.apply("revisionsDone") == result.apply("revisionsSize")) {
               logger.info(log)
             } else {
               logger.warn(log)

@@ -12,7 +12,8 @@ trait DatabaseInterface {
   def getMetrics(): List[Map[String, Any]]
   def execute(sql : String)
   def isBusy(): Boolean
-  def revisionExists(id: Int): Boolean
-  def metricExists(id: Int, parentid: Int, title : String): Boolean
+  def deleteRevision(id : Int)
+  def insertMetrics(fields : Map[String, Any]): Boolean
+  def insertRevision(fields : Map[String, Any]): Boolean
 
 }

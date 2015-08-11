@@ -116,11 +116,12 @@ class RevisionsParser (api : MediaWikiAPI, lang : String, title : String, direct
   }
 
   def getAuthor(revid: Int): String = {
+    var author = ""
     val revision = getRevision(revid)
     if (revision.isDefined) {
-      (revision.get \ "user").as[JsString].value
+      author = (revision.get \ "user").as[JsString].value
     }
-    ""
+    author
   }
 
   def getWikitext(revid: Int): String = {

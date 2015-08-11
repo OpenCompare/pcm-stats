@@ -5,6 +5,7 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 import com.almworks.sqlite4java._
+import org.joda.time.DateTime
 import org.opencompare.stats.interfaces.DatabaseInterface
 
 import scala.collection.mutable.ListBuffer
@@ -25,33 +26,34 @@ class DatabaseSqlite(path : String) extends DatabaseInterface {
   queue.start()
 
   private val revisionModel = List(
-    "id LONG PRIMARY KEY",
-    "parentId LONG REFERENCES revisions(id) ON UPDATE CASCADE",
+    "id INTEGER PRIMARY KEY",
+    "parentId INTEGER REFERENCES revisions(id) ON UPDATE CASCADE",
     "title TEXT",
     "date DATETIME",
     "lang TEXT",
     "author TEXT"
   )
   private val metricModel = List(
-    "id LONG REFERENCES revisions(id) ON UPDATE CASCADE",
+    "id INTEGER REFERENCES revisions(id) ON UPDATE CASCADE",
     "name TEXT",
-    "date DATE",
-    "compareToId LONG REFERENCES revisions(id) ON UPDATE CASCADE",
+    "date DATETIME",
+    "compareToId INTEGER REFERENCES revisions(id) ON UPDATE CASCADE",
     "nbMatrices INTEGER",
     "changedMatrices INTEGER",
     "newFeatures INTEGER",
     "delFeatures INTEGER",
     "newProducts INTEGER",
     "delProducts INTEGER",
-    "changedCells INTEGER"
+    "changedCells INTEGER",
+    "CONSTRAINT pk PRIMARY KEY (id, name, date, compareToId, nbMatrices)"
   )
 
   def initialize(): DatabaseSqlite = {
     val job = new SQLiteJob[Unit]() {
       protected def job(connection : SQLiteConnection): Unit = {
         // this method is called from database thread and passes the connection
-        connection.exec("create table if not exists revisions (" + revisionModel.mkString(", ") + ")")
-        connection.exec("create table if not exists metrics (" + metricModel.mkString(", ") + ")")
+        connection.exec("CREATE TABLE IF NOT EXISTS revisions (" + revisionModel.mkString(", ") + ")")
+        connection.exec("CREATE TABLE IF NOT EXISTS metrics (" + metricModel.mkString(", ") + ")")
       }
     }
     queue.execute[Unit, SQLiteJob[Unit]](job)
@@ -117,26 +119,89 @@ class DatabaseSqlite(path : String) extends DatabaseInterface {
     queue.isStopped
   }
 
-  def revisionExists(id: Int): Boolean = {
-    val job = new SQLiteJob[SQLiteStatement]() {
-      protected def job(connection : SQLiteConnection): SQLiteStatement = {
+  def insertRevision(fields : Map[String, Any]): Boolean = {
+    val id = fields.apply("id").asInstanceOf[Int]
+    val title = fields.apply("title").asInstanceOf[String].replace("'", "")
+    val date = fields.apply("date").asInstanceOf[DateTime].toString
+    val author = fields.apply("author").asInstanceOf[String].replace("'", "")
+    val parentId = fields.apply("parentId").asInstanceOf[Int]
+    val lang = fields.apply("lang").asInstanceOf[String]
+
+    val job = new SQLiteJob[Boolean]() {
+      protected def job(connection : SQLiteConnection): Boolean = {
         // this method is called from database thread and passes the connection
-        connection.prepare(s"SELECT id FROM revisions where id=?").bind(1, id)
+        var result = false
+        val exists = connection.prepare("SELECT id FROM revisions WHERE id=" + id)
+        exists.step()
+        if (!exists.hasRow) {
+          result = connection.prepare("INSERT INTO revisions VALUES (" +
+            id + ", " +
+            parentId + ", " +
+            "'" + title + "', " +
+            "'" + date + "', " +
+            "'" + lang + "', " +
+            "'" + author + "')"
+          ).step
+        }
+        result
       }
     }
-    val result = queue.execute[SQLiteStatement, SQLiteJob[SQLiteStatement]](job)
-    result.complete().step()
+    queue.execute[Boolean, SQLiteJob[Boolean]](job).complete()
   }
 
-  def metricExists(id: Int, parentid: Int, title : String): Boolean = {
-    val job = new SQLiteJob[SQLiteStatement]() {
-      protected def job(connection : SQLiteConnection): SQLiteStatement = {
+  def insertMetrics(fields : Map[String, Any]): Boolean = {
+    val id = fields.apply("id").asInstanceOf[Int]
+    val name = fields.apply("name").asInstanceOf[String].replace("'", "")
+    val date = fields.apply("date").asInstanceOf[DateTime].toString
+    val parentId = fields.apply("parentId").asInstanceOf[Int]
+    val nbMatrices = fields.apply("nbMatrices").asInstanceOf[Int]
+    val diffMatrices = fields.apply("diffMatrices").asInstanceOf[Int]
+    val newFeatures = fields.apply("newFeatures").asInstanceOf[Int]
+    val delFeatures = fields.apply("delFeatures").asInstanceOf[Int]
+    val newProducts = fields.apply("newProducts").asInstanceOf[Int]
+    val delProducts = fields.apply("delProducts").asInstanceOf[Int]
+    val changedCells = fields.apply("changedCells").asInstanceOf[Int]
+
+    val job = new SQLiteJob[Boolean]() {
+      protected def job(connection : SQLiteConnection): Boolean = {
         // this method is called from database thread and passes the connection
-        connection.prepare(s"SELECT id FROM revisions where id=?, parentid=?, title=?").bind(1, id).bind(2, parentid).bind(3, title)
+        var result = false
+        val exists = connection.prepare("SELECT id FROM metrics WHERE " +
+            "id=" + id + ", " +
+            "name='" + name + "', " +
+            "date='" + date + "', " +
+            "compareToId=" + parentId + ", " +
+            "nbMatrices=" + nbMatrices)
+        exists.step()
+        if (!exists.hasRow) {
+          result = connection.prepare("INSERT INTO metrics VALUES (" +
+            id + ", " +
+            "'" + name + "', " +
+            "'" + date + "', " +
+            parentId + ", " +
+            nbMatrices + ", " +
+            diffMatrices + ", " +
+            newFeatures + ", " +
+            delFeatures + ", " +
+            newProducts + ", " +
+            delProducts + ", " +
+            changedCells + ")"
+          ).step
+        }
+        result
       }
     }
-    val result = queue.execute[SQLiteStatement, SQLiteJob[SQLiteStatement]](job)
-    result.complete().step()
+    queue.execute[Boolean, SQLiteJob[Boolean]](job).complete()
+  }
+
+  def deleteRevision(id : Int) {
+    val job = new SQLiteJob[Unit]() {
+      protected def job(connection : SQLiteConnection): Unit = {
+        // this method is called from database thread and passes the connection
+        connection.exec("DELETE FROM revisions WHERE id=" + id)
+      }
+    }
+    queue.execute[Unit, SQLiteJob[Unit]](job).complete()
   }
 
 }
