@@ -24,8 +24,8 @@ class Metrics(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitextPa
   val pagesSize = pages.size
 
   def start(): Unit = {
-    logger.debug("Process => Nb. total pages: " + pagesSize)
-    logger.debug("Provess => Nb. total revisions: " + revisions.size)
+    logger.debug("Nb. total pages: " + pagesSize)
+    logger.debug("Nb. total revisions: " + revisions.size)
     pages.foreach(page => {
       val title = page._1.toString
       val content = synchronized(page._2)
@@ -67,12 +67,12 @@ class Metrics(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitextPa
     })
     logger.debug("All threads started...")
     while (groupThread.activeCount() > 0) {}
-    logger.debug("Process => Nb. pages done: " + pageDone)
-    logger.debug("Provess => Nb. revisions done: " + revisionDone)
+    logger.debug("Nb. pages done (estimation): " + pageDone)
+    logger.debug("Nb. revisions done (estimation): " + revisionDone)
     logger.debug("Waiting for database threads to terminate...")
     while (db.isBusy()) {}
     val done = db.getMetrics()
-    logger.debug("Database => Nb. comparisons done: " + done.size)
+    logger.debug("Nb. comparisons done: " + done.size)
     logger.debug("process finished.")
   }
 }

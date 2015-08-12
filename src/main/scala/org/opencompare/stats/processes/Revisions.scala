@@ -117,10 +117,10 @@ class Revisions(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitext
     })
     logger.debug("All threads started...")
     while (groupThread.activeCount() > 0) {}
-    logger.info("Nb. total pages: " + pagesSize)
-    logger.info("Nb. pages done: " + pagesDone)
-    logger.info("Nb. revisions done: " + revisionsDone)
-    logger.info("Nb. new revisions: " + newRevisions)
+    logger.info("Nb. total pages (estimation): " + pagesSize)
+    logger.info("Nb. pages done (estimation): " + pagesDone)
+    logger.info("Nb. revisions done (estimation): " + revisionsDone)
+    logger.info("Nb. new revisions (estimation): " + newRevisions)
     logger.debug("Waiting for database threads to terminate...")
     while (db.isBusy()) {}
     val dbRevisions = db.getRevisions()

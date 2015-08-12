@@ -27,16 +27,16 @@ class RevisionsComparator(api : MediaWikiAPI, wikitextPath : String, appender : 
   var oldestContainers : List[PCMContainer] = null
   var newestContainers : List[PCMContainer] = null
   var revisionsDone = 0
-  var metrics : List[Map[String, Any]] = _
+  var metrics : ListBuffer[Map[String, Any]] = ListBuffer.empty
 
   private val wikiLoader = new WikiTextLoader(new WikiTextKeepTemplateProcessor(api))
 
   def getMetrics(): List[Map[String, Any]] = {
-    metrics
+    metrics.toList
   }
 
   def compare(title : String, content : List[Map[String, Any]]): Map[String, Int] = {
-    val currentMetrics : ListBuffer[Map[String, Any]]= ListBuffer()
+    metrics = ListBuffer.empty
     var revisionsSize = content.size
     // Sort by revision Id newer to older
     content.sortBy(line => line.apply("id").asInstanceOf[Int]).reverse.foreach(line => {
@@ -88,52 +88,25 @@ class RevisionsComparator(api : MediaWikiAPI, wikitextPath : String, appender : 
                   try {
                     oldestContainer = Option(oldestContainers.apply(newestContainerIndex))
                   } catch {
-                    case _: Exception => {
-                      logger.fatal(title + " -- " + oldestId + " -- matrix not found")
-                    }
+                    case _: Exception => println
                   }
                 }
-              }
-
-              // If at least one matrix has been found
-              if (oldestContainer.isDefined) {
-                // If the matrix exists in the current line
-                oldestPcm = oldestContainer.get.getPcm
-                val diff = newestPcm.diff(oldestPcm, new ComplexePCMElementComparator)
-                currentMetrics.add(Map[String, Any](
-                  ("id", newestId),
-                  ("name", newestPcm.getName),
-                  ("date", DateTime.parse(date)),
-                  ("parentId", oldestId),
-                  ("nbMatrices", newestContainersSize),
-                  ("diffMatrices", (newestContainersSize - oldestContainersSize)),
-                  ("newFeatures", diff.getFeaturesOnlyInPCM1.size()),
-                  ("delFeatures", diff.getFeaturesOnlyInPCM2.size()),
-                  ("newProducts", diff.getProductsOnlyInPCM1.size()),
-                  ("delProducts", diff.getProductsOnlyInPCM2.size()),
-                  ("changedCells", diff.getDifferingCells.size())
-                ))
+                if (oldestContainer.isDefined) {
+                  oldestPcm = oldestContainer.get.getPcm
+                  addMetric(oldestId, newestId, oldestPcm, newestPcm, DateTime.parse(date), oldestContainersSize, newestContainersSize)
+                } else {
+                  logger.fatal(title + " -- " + newestId + " -- referenced matrix not found in revision " + oldestId)
+                }
+              } else {
+                // By the miracle of time, matrix appears
+                newMatrix(newestId, DateTime.parse(date), newestContainers)
+                logger.debug(title + " -- " + newestId + " -- new page with " + newestContainersSize + " matrix(ces)")
               }
             }
           } else {
-            logger.debug(title + " -- " + oldestId + " -- new page with " + oldestContainersSize + " matrix(ces)")
             // First line so new matrices
-            for (container <- oldestContainers) {
-              oldestPcm = container.getPcm
-              currentMetrics.add(Map[String, Any](
-                ("id", oldestId),
-                ("name", oldestPcm.getName),
-                ("date", DateTime.parse(date)),
-                ("parentId", 0),
-                ("nbMatrices", oldestContainersSize),
-                ("diffMatrices", oldestContainersSize),
-                ("newFeatures", oldestPcm.getConcreteFeatures.size()),
-                ("delFeatures", 0),
-                ("newProducts", oldestPcm.getProducts.size()),
-                ("delProducts", 0),
-                ("changedCells", 0)
-              ))
-            }
+            newMatrix(oldestId, DateTime.parse(date), oldestContainers)
+            logger.debug(title + " -- " + oldestId + " -- first page with " + oldestContainersSize + " matrix(ces)")
           }
           revisionsDone += 1
         }
@@ -149,9 +122,44 @@ class RevisionsComparator(api : MediaWikiAPI, wikitextPath : String, appender : 
       // Next revision
       newestId = oldestId
     })
-    // Append the lines to create
-    metrics = currentMetrics.toList
     // And return the results
     Map[String, Int](("revisionsDone", revisionsDone), ("revisionsSize", revisionsSize))
   }
+
+  private def addMetric(oldId : Int, newId : Int, oldestPcm : PCM, newestPcm : PCM, date : DateTime, oldSize : Int, newSize : Int): Unit = {
+    val diff = newestPcm.diff(oldestPcm, new ComplexePCMElementComparator)
+    metrics.add(Map[String, Any](
+      ("id", newId),
+      ("name", newestPcm.getName),
+      ("date", date),
+      ("parentId", oldId),
+      ("nbMatrices", newSize),
+      ("diffMatrices", (newSize - oldSize)),
+      ("newFeatures", diff.getFeaturesOnlyInPCM1.size()),
+      ("delFeatures", diff.getFeaturesOnlyInPCM2.size()),
+      ("newProducts", diff.getProductsOnlyInPCM1.size()),
+      ("delProducts", diff.getProductsOnlyInPCM2.size()),
+      ("changedCells", diff.getDifferingCells.size())
+    ))
+  }
+
+  private def newMatrix(id : Int, date : DateTime, containers : List[PCMContainer]): Unit = {
+    for (container <- containers) {
+      val pcm = container.getPcm
+      metrics.add(Map[String, Any](
+        ("id", id),
+        ("name", pcm.getName),
+        ("date", date),
+        ("parentId", 0),
+        ("nbMatrices", containers.size),
+        ("diffMatrices", containers.size),
+        ("newFeatures", pcm.getConcreteFeatures.size()),
+        ("delFeatures", 0),
+        ("newProducts", pcm.getProducts.size()),
+        ("delProducts", 0),
+        ("changedCells", 0)
+      ))
+    }
+  }
+
 }

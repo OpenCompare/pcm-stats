@@ -167,10 +167,10 @@ class DatabaseSqlite(path : String) extends DatabaseInterface {
         // this method is called from database thread and passes the connection
         var result = false
         val exists = connection.prepare("SELECT id FROM metrics WHERE " +
-            "id=" + id + ", " +
-            "name='" + name + "', " +
-            "date='" + date + "', " +
-            "compareToId=" + parentId + ", " +
+            "id=" + id + " AND " +
+            "name='" + name + "' AND " +
+            "date='" + date + "' AND " +
+            "compareToId=" + parentId + " AND " +
             "nbMatrices=" + nbMatrices)
         exists.step()
         if (!exists.hasRow) {
