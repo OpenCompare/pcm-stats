@@ -60,7 +60,7 @@ class DatabaseSqlite(path : String) extends DatabaseInterface {
     this
   }
 
-  def getRevisions(): List[Map[String, Any]] = {
+  def browseRevisions(): List[Map[String, Any]] = {
     val objects = ListBuffer[Map[String, Any]]()
     val job = new SQLiteJob[SQLiteStatement]() {
       protected def job(connection : SQLiteConnection): SQLiteStatement = {
@@ -84,7 +84,7 @@ class DatabaseSqlite(path : String) extends DatabaseInterface {
     objects.toList
   }
 
-  def getMetrics(): List[Map[String, Any]] = {
+  def browseMetrics(): List[Map[String, Any]] = {
     val objects = ListBuffer[Map[String, Any]]()
     val job = new SQLiteJob[SQLiteStatement]() {
       protected def job(connection : SQLiteConnection): SQLiteStatement = {
@@ -119,7 +119,7 @@ class DatabaseSqlite(path : String) extends DatabaseInterface {
     queue.isStopped
   }
 
-  def insertRevision(fields : Map[String, Any]): Boolean = {
+  def createRevision(fields : Map[String, Any]): Boolean = {
     val id = fields.apply("id").asInstanceOf[Int]
     val title = fields.apply("title").asInstanceOf[String].replace("'", "")
     val date = fields.apply("date").asInstanceOf[DateTime].toString
@@ -149,7 +149,7 @@ class DatabaseSqlite(path : String) extends DatabaseInterface {
     queue.execute[Boolean, SQLiteJob[Boolean]](job).complete()
   }
 
-  def insertMetrics(fields : Map[String, Any]): Boolean = {
+  def createMetrics(fields : Map[String, Any]): Boolean = {
     val id = fields.apply("id").asInstanceOf[Int]
     val name = fields.apply("name").asInstanceOf[String].replace("'", "")
     val date = fields.apply("date").asInstanceOf[DateTime].toString

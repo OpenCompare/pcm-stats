@@ -15,7 +15,7 @@ class Metrics(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitextPa
 
   val groupThread = new ThreadGroup("metrics")
 
-  val revisions = db.getRevisions()
+  val revisions = db.browseRevisions()
   val pages = revisions.groupBy(line => {
     line.get("title").get
   })
@@ -37,7 +37,7 @@ class Metrics(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitextPa
             val result: Map[String, Int] = comparator.compare(title, content)
             for (line : Map[String, Any] <- comparator.getMetrics()) {
               try {
-                db.insertMetrics(line)
+                db.createMetrics(line)
               } catch {
                 case e: Exception => {
                   logger.error(title + " -- " + line.apply("id").asInstanceOf[Int] + " -- " + e.getLocalizedMessage)
@@ -71,7 +71,7 @@ class Metrics(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitextPa
     logger.debug("Nb. revisions done (estimation): " + revisionDone)
     logger.debug("Waiting for database threads to terminate...")
     while (db.isBusy()) {}
-    val done = db.getMetrics()
+    val done = db.browseMetrics()
     logger.debug("Nb. comparisons done: " + done.size)
     logger.debug("process finished.")
   }

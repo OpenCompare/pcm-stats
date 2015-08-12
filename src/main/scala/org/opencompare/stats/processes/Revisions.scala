@@ -55,7 +55,7 @@ class Revisions(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitext
                 val parentId = revision.getParentId(revid)
                 // To prevent from matrix deletion then addition,  delete the parentid from the database (it should be here because of the older to newer sorting)
                 try {
-                  db.insertRevision(Map(
+                  db.createRevision(Map(
                     ("id", revid),
                     ("title", pageTitle),
                     ("date", DateTime.parse(revision.getDate(revid).get)),
@@ -123,7 +123,7 @@ class Revisions(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitext
     logger.info("Nb. new revisions (estimation): " + newRevisions)
     logger.debug("Waiting for database threads to terminate...")
     while (db.isBusy()) {}
-    val dbRevisions = db.getRevisions()
+    val dbRevisions = db.browseRevisions()
     database_logger.info("Nb. pages: " + dbRevisions.groupBy(line => line.apply("title")).toList.size)
     database_logger.info("Nb. revisions: " + dbRevisions.size)
     logger.info("process finished.")

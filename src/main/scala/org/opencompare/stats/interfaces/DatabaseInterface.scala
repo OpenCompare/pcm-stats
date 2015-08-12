@@ -8,12 +8,12 @@ trait DatabaseInterface {
 
   // create the schema
   def initialize(): DatabaseInterface
-  def getRevisions(): List[Map[String, Any]]
-  def getMetrics(): List[Map[String, Any]]
+  def browseRevisions(): List[Map[String, Any]]
+  def browseMetrics(): List[Map[String, Any]]
   def execute(sql : String)
   def isBusy(): Boolean
   def deleteRevision(id : Int)
-  def insertMetrics(fields : Map[String, Any]): Boolean
-  def insertRevision(fields : Map[String, Any]): Boolean
+  def createMetrics(fields : Map[String, Any]): Boolean
+  def createRevision(fields : Map[String, Any]): Boolean
 
 }
