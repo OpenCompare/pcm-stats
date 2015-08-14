@@ -167,6 +167,7 @@ class DatabaseSqlite(path : String) extends DatabaseInterface {
   def createMetrics(fields : Map[String, Any]): Option[Int] = {
     val id = fields.apply("id").asInstanceOf[Int]
     val name = fields.apply("name").asInstanceOf[String].replace("'", "")
+    val originalName = fields.apply("originalName").asInstanceOf[String].replace("'", "")
     val date = fields.apply("date").asInstanceOf[DateTime].toString
     val parentId = fields.apply("parentId").asInstanceOf[Int]
     val nbMatrices = fields.apply("nbMatrices").asInstanceOf[Int]
@@ -192,6 +193,7 @@ class DatabaseSqlite(path : String) extends DatabaseInterface {
           connection.prepare("INSERT INTO metrics VALUES (" +
             id + ", " +
             "'" + name + "', " +
+            "'" + originalName + "', " +
             "'" + date + "', " +
             parentId + ", " +
             nbMatrices + ", " +
