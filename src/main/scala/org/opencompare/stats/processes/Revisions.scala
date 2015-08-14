@@ -3,10 +3,10 @@ package org.opencompare.stats.processes
 import java.io.{File, FileWriter}
 
 import com.github.tototoshi.csv.CSVReader
-import org.apache.log4j.{Level, FileAppender, Logger}
+import org.apache.log4j.{FileAppender, Level, Logger}
 import org.joda.time.DateTime
 import org.opencompare.io.wikipedia.io.MediaWikiAPI
-import org.opencompare.stats.utils.{RevisionsParser, CustomCsvFormat, DatabaseSqlite}
+import org.opencompare.stats.utils.{CustomCsvFormat, DatabaseSqlite, RevisionsParser}
 
 /**
  * Created by smangin on 23/07/15.
@@ -16,6 +16,7 @@ class Revisions(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitext
   // File configurations
   private val inputPageList = new File("src/main/resources/list_of_PCMs.csv")
   private val reader = CSVReader.open(inputPageList)(new CustomCsvFormat)
+  val groupThread = new ThreadGroup("revisions")
 
   // Logging
   private val logger = Logger.getLogger("revisions")
@@ -24,17 +25,18 @@ class Revisions(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitext
   logger.setLevel(level)
   database_logger.addAppender(appender)
 
-  // Statistical vars
-  private val pages = reader.allWithHeaders()
-  private val groups = pages.grouped(10).toList // Performance issue hack
-  private var pagesSize = pages.size
-  private var pagesDone = synchronized(0)
-  private var revisionsDone = synchronized(0)
-  private var newRevisions = synchronized(0)
-  private var delRevisions = synchronized(0)
-  private val groupThread = new ThreadGroup("revisions")
+  def compute(groupBy : Int) {
+    val pages = reader.allWithHeaders()
+    val groups = pages.grouped(groupBy).toList // Performance issue hack
+    // Statistical vars
+    var pagesSize = pages.size
+    var pagesDone = synchronized(0)
+    var revisionsDone = synchronized(0)
+    var revisionsSize = synchronized(0)
+    var revisionsUndo = synchronized(0)
+    var revisionsBlank = synchronized(0)
+    var newRevisions = synchronized(0)
 
-  def start() {
     // Parse wikipedia page list
     groups.foreach(group => {
       var pageTitle = group.head.get("Title").get
@@ -48,7 +50,10 @@ class Revisions(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitext
             try {
               val revision = new RevisionsParser(api, pageLang, pageTitle, "older")
               val ids = revision.getIds(true, true)
-              for (revid: Int <- ids) {
+              revisionsSize += ids.apply("ids").size
+              revisionsUndo += ids.apply("undo").size
+              revisionsBlank += ids.apply("blank").size
+              for (revid: Int <- ids.apply("ids")) {
                 // Keep an eye on already existing revisions
                 val fileName = file + revid + ".wikitext"
                 val revisionFile = new File(fileName)
@@ -64,7 +69,6 @@ class Revisions(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitext
                     ("lang", pageLang)
                   ))
                   revisionsDone += 1
-                  newRevisions += 1
                 } catch {
                   case e: Exception => {
                     database_logger.error(pageTitle + " -- " + revid + " -- " + e.getLocalizedMessage)
@@ -82,26 +86,31 @@ class Revisions(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitext
                       logger.error(e.getStackTraceString)
                     }
                   }
-                  if (wikitext != "") {
-                    val wikiWriter = new FileWriter(revisionFile)
-                    wikiWriter.write(wikitext)
-                    wikiWriter.close()
-                    //logger.debug(pageTitle + " => '" + revid + "' wikitext retreived and saved") // Too much verbose
-                  } else {
-                    try {
+                  val wikiWriter = new FileWriter(revisionFile)
+                  wikiWriter.write(wikitext)
+                  wikiWriter.close()
+                }
+
+                // Manage undo empty/blank revisions
+                try {
+                  // We change the parent revision of the parent revision with the revision which is the parent revision of the current revision... Gniark gniark
+                  var revidToCompareWith = 0
+                  for (revId2 <- revision.getIds().apply("ids")) {
+                    if (revision.getParentId(revId2) == revid) {
                       db.deleteRevision(revid)
-                      logger.warn(pageTitle + " -- " + revid + " -- " + " is a blank revision. deleted.")
-                    } catch {
-                      case e: Exception => {
-                        database_logger.error(pageTitle + " -- " + revid + " -- " + e.getLocalizedMessage)
-                        database_logger.error(e.getStackTraceString)
-                      }
+                      db.updateRevisionParentId(revId2, parentId)
+                      revisionsBlank += 1
                     }
+                  }
+                } catch {
+                  case e: Exception => {
+                    database_logger.error(pageTitle + " -- " + revid + " -- " + e.getLocalizedMessage)
+                    database_logger.error(e.getStackTraceString)
                   }
                 }
               }
               pagesDone += 1
-              logger.info(pagesDone + "/" + pagesSize + "\t[" + ids.size + "/" + revision.getIds().size + " rev." + "]\t" + pageTitle)
+              logger.info(pagesDone + "/" + pagesSize + "\t[" + ids.apply("ids").size + "/" + revision.getIds().apply("ids").size + " rev." + "]\t" + pageTitle)
             } catch {
               case e: Exception => {
                 logger.error(pageTitle + " => " + e.getLocalizedMessage)
@@ -119,8 +128,10 @@ class Revisions(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitext
     while (groupThread.activeCount() > 0) {}
     logger.info("Nb. total pages (estimation): " + pagesSize)
     logger.info("Nb. pages done (estimation): " + pagesDone)
+    logger.info("Nb. revisions size (estimation): " + revisionsSize)
     logger.info("Nb. revisions done (estimation): " + revisionsDone)
-    logger.info("Nb. new revisions (estimation): " + newRevisions)
+    logger.info("Nb. undo revisions (estimation): " + revisionsUndo)
+    logger.info("Nb. blank revisions (estimation): " + revisionsBlank)
     logger.debug("Waiting for database threads to terminate...")
     while (db.isBusy()) {}
     val dbRevisions = db.browseRevisions()

@@ -38,10 +38,10 @@ This process uses several other classes such as :
 
   - `org.opencompare.stats.utils.RevisionsParser` helps to provide an easiest way to retreive revisions metadata
   - `org.opencompare.io.wikipedia.io.MediaWikipediaApi` provides a scala API interface to the Wikipedia API
-
+  
 #### Performance issues and resources
 
-Due to performance issues (tested in a quadcore AMD processor with 8GB RAM, it lasts 7 hours), it's preferable to add these options to the JVM (see http://www.oracle.com/technetwork/java/javase/tech/vmoptions-jsp-140102.html for further explaination) to ensure any Java stack and GC limitation exceptions :
+Due to performance issues (tested in a quadcore AMD processor with 8GB RAM, it lasts 7 hours), it's preferable to add these options to the JVM (see http://www.oracle.com/technetwork/java/javase/tech/vmoptions-jsp-140102.html for further explaination) to ensure any Java stack and GC limitation org.opencompare.stats.exceptions :
 
  - -Xmx5120m
  - -XX:-UseParallelOldGC
@@ -61,7 +61,7 @@ This process uses several other classes such as :
 
 #### Performance issues
 
-Like the wikitext grabbing process, a line previously created will not be reprocessed to save database access by using of a CONSTRAINTS on several fields (generates a great amount of threads exceptions, has to be fixed soon) and by using a simple SELECT instead of an INSERT.
+Like the wikitext grabbing process, a line previously created will not be reprocessed to save database access by using of a CONSTRAINTS on several fields (generates a great amount of threads org.opencompare.stats.exceptions, has to be fixed soon) and by using a simple SELECT instead of an INSERT.
 
 ### Compute metrics to obtain graphical interpretation
 

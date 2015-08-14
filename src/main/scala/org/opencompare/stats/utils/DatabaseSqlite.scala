@@ -26,12 +26,13 @@ class DatabaseSqlite(path : String) extends DatabaseInterface {
   queue.start()
 
   private val revisionModel = List(
-    "id INTEGER PRIMARY KEY",
+    "id INTEGER",
     "parentId INTEGER REFERENCES revisions(id) ON UPDATE CASCADE",
     "title TEXT",
     "date DATETIME",
     "lang TEXT",
-    "author TEXT"
+    "author TEXT",
+    "CONSTRAINT pk PRIMARY KEY (id, parentId)"
   )
   private val metricModel = List(
     "id INTEGER REFERENCES revisions(id) ON UPDATE CASCADE",
@@ -65,7 +66,7 @@ class DatabaseSqlite(path : String) extends DatabaseInterface {
     val job = new SQLiteJob[SQLiteStatement]() {
       protected def job(connection : SQLiteConnection): SQLiteStatement = {
         // this method is called from database thread and passes the connection
-        connection.prepare("SELECT id, title, author, date, lang, parentid FROM revisions")
+        connection.prepare("SELECT id, title, author, date, lang, parentId FROM revisions")
       }
     }
     // FIXME: Create a method that return a .complete() leads to several issues
@@ -77,7 +78,7 @@ class DatabaseSqlite(path : String) extends DatabaseInterface {
         ("author", result.columnString(2)),
         ("date", result.columnString(3)),
         ("lang", result.columnString(4)),
-        ("parentid", result.columnString(5))
+        ("parentId", result.columnInt(5))
       )
       objects.append(element)
     }
@@ -119,7 +120,7 @@ class DatabaseSqlite(path : String) extends DatabaseInterface {
     queue.isStopped
   }
 
-  def createRevision(fields : Map[String, Any]): Boolean = {
+  def createRevision(fields : Map[String, Any]): Option[Int] = {
     val id = fields.apply("id").asInstanceOf[Int]
     val title = fields.apply("title").asInstanceOf[String].replace("'", "")
     val date = fields.apply("date").asInstanceOf[DateTime].toString
@@ -127,14 +128,14 @@ class DatabaseSqlite(path : String) extends DatabaseInterface {
     val parentId = fields.apply("parentId").asInstanceOf[Int]
     val lang = fields.apply("lang").asInstanceOf[String]
 
-    val job = new SQLiteJob[Boolean]() {
-      protected def job(connection : SQLiteConnection): Boolean = {
+    val job = new SQLiteJob[Option[Int]]() {
+      protected def job(connection : SQLiteConnection): Option[Int] = {
         // this method is called from database thread and passes the connection
-        var result = false
+        var result : Option[Int] = Option.empty
         val exists = connection.prepare("SELECT id FROM revisions WHERE id=" + id)
         exists.step()
         if (!exists.hasRow) {
-          result = connection.prepare("INSERT INTO revisions VALUES (" +
+          connection.prepare("INSERT INTO revisions VALUES (" +
             id + ", " +
             parentId + ", " +
             "'" + title + "', " +
@@ -142,14 +143,15 @@ class DatabaseSqlite(path : String) extends DatabaseInterface {
             "'" + lang + "', " +
             "'" + author + "')"
           ).step
+          result = Option(id)
         }
         result
       }
     }
-    queue.execute[Boolean, SQLiteJob[Boolean]](job).complete()
+    queue.execute[Option[Int], SQLiteJob[Option[Int]]](job).complete()
   }
 
-  def createMetrics(fields : Map[String, Any]): Boolean = {
+  def createMetrics(fields : Map[String, Any]): Option[Int] = {
     val id = fields.apply("id").asInstanceOf[Int]
     val name = fields.apply("name").asInstanceOf[String].replace("'", "")
     val date = fields.apply("date").asInstanceOf[DateTime].toString
@@ -162,10 +164,10 @@ class DatabaseSqlite(path : String) extends DatabaseInterface {
     val delProducts = fields.apply("delProducts").asInstanceOf[Int]
     val changedCells = fields.apply("changedCells").asInstanceOf[Int]
 
-    val job = new SQLiteJob[Boolean]() {
-      protected def job(connection : SQLiteConnection): Boolean = {
+    val job = new SQLiteJob[Option[Int]]() {
+      protected def job(connection : SQLiteConnection): Option[Int] = {
         // this method is called from database thread and passes the connection
-        var result = false
+        var result : Option[Int] = Option.empty
         val exists = connection.prepare("SELECT id FROM metrics WHERE " +
             "id=" + id + " AND " +
             "name='" + name + "' AND " +
@@ -174,7 +176,7 @@ class DatabaseSqlite(path : String) extends DatabaseInterface {
             "nbMatrices=" + nbMatrices)
         exists.step()
         if (!exists.hasRow) {
-          result = connection.prepare("INSERT INTO metrics VALUES (" +
+          connection.prepare("INSERT INTO metrics VALUES (" +
             id + ", " +
             "'" + name + "', " +
             "'" + date + "', " +
@@ -187,11 +189,12 @@ class DatabaseSqlite(path : String) extends DatabaseInterface {
             delProducts + ", " +
             changedCells + ")"
           ).step
+          result = Option(id)
         }
         result
       }
     }
-    queue.execute[Boolean, SQLiteJob[Boolean]](job).complete()
+    queue.execute[Option[Int], SQLiteJob[Option[Int]]](job).complete()
   }
 
   def deleteRevision(id : Int) {
@@ -199,6 +202,16 @@ class DatabaseSqlite(path : String) extends DatabaseInterface {
       protected def job(connection : SQLiteConnection): Unit = {
         // this method is called from database thread and passes the connection
         connection.exec("DELETE FROM revisions WHERE id=" + id)
+      }
+    }
+    queue.execute[Unit, SQLiteJob[Unit]](job).complete()
+  }
+
+  def updateRevisionParentId(id : Int, parentId : Int) {
+    val job = new SQLiteJob[Unit]() {
+      protected def job(connection : SQLiteConnection): Unit = {
+        // this method is called from database thread and passes the connection
+        connection.exec("UPDATE revisions SET parentId=" + parentId + " WHERE id=" + id)
       }
     }
     queue.execute[Unit, SQLiteJob[Unit]](job).complete()

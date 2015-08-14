@@ -7,33 +7,33 @@ import org.opencompare.stats.utils.{DatabaseSqlite, RevisionsComparator}
 /**
  * Created by smangin on 23/07/15.
  */
-class Metrics(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitextPath : String, appender : FileAppender, level : Level) {
+class Metrics(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitextPath : String, pcmPath : String, appender : FileAppender, level : Level) {
 
+  val groupThread = new ThreadGroup("metrics")
+
+  // Logging
   private val logger = Logger.getLogger("metrics")
   logger.addAppender(appender)
   logger.setLevel(level)
 
-  val groupThread = new ThreadGroup("metrics")
+  def compute(): Unit = {
+    val revisions = db.browseRevisions()
+    val pages = revisions.groupBy(line => {
+      line.get("title").get
+    })
+    var pageDone = synchronized[Int](1)
+    var revisionDone = synchronized[Int](0)
+    val pagesSize = pages.size
 
-  val revisions = db.browseRevisions()
-  val pages = revisions.groupBy(line => {
-    line.get("title").get
-  })
-  var pageDone = synchronized[Int](1)
-  var revisionDone = synchronized[Int](0)
-  val pagesSize = pages.size
-
-  def start(): Unit = {
     logger.debug("Nb. total pages: " + pagesSize)
     logger.debug("Nb. total revisions: " + revisions.size)
     pages.foreach(page => {
       val title = page._1.toString
       val content = synchronized(page._2)
-      val comparator = new RevisionsComparator(api, wikitextPath, appender, level)
+      val comparator = new RevisionsComparator(db, api, wikitextPath, pcmPath, appender, level)
       val thread = new Thread(groupThread, title) {
         override def run() {
           try {
-            // your custom behavior here
             val result: Map[String, Int] = comparator.compare(title, content)
             for (line : Map[String, Any] <- comparator.getMetrics()) {
               try {
@@ -46,13 +46,9 @@ class Metrics(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitextPa
               }
             }
             val log = pageDone + "/" + pagesSize + "\t[" + result.apply("revisionsDone") + "/" + result.apply("revisionsSize") + "\trev.]\t" + title
-            if (result.apply("revisionsDone") == result.apply("revisionsSize")) {
-              logger.info(log)
-            } else {
-              logger.warn(log)
-            }
+            logger.info(log)
             pageDone += 1
-            revisionDone += result.apply("revisionsDone").asInstanceOf[Int]
+            revisionDone += result.apply("revisionsDone")
           } catch {
             case e: Exception => {
               logger.error(title + " => " + e.getLocalizedMessage)

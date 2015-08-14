@@ -19,6 +19,7 @@ object Launcher extends App {
   // Paths
   val path = "metrics/"
   val wikitextPath = path + "wikitext/"
+  val pcmPath = path + "pcm/"
   // Logger
   val level = Level.ALL
   val logger = Logger.getLogger("launcher")
@@ -36,8 +37,8 @@ object Launcher extends App {
   val db = new DatabaseSqlite(path + "metrics.db").initialize()
 
   val revisions = new Revisions(api, db, cTime.format(formatter), wikitextPath, fh, level)
-  val metrics = new Metrics(api, db, cTime.format(formatter), wikitextPath, fh, level)
-  revisions.start()
-  metrics.start()
+  val metrics = new Metrics(api, db, cTime.format(formatter), wikitextPath, pcmPath, fh, level)
+  revisions.compute(10)
+  metrics.compute()
   logger.info("Launcher has stopped.")
 }

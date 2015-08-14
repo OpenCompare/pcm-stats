@@ -47,18 +47,23 @@ class RevisionsParser (api : MediaWikiAPI, lang : String, title : String, direct
     }
   }
 
-  def getIds(skipUndo : Boolean = false, skipBlank : Boolean = false): List[Int] = {
+  def getIds(skipUndo : Boolean = false, skipBlank : Boolean = false): Map[String, List[Int]] = {
     val ids = getIds()
-    val blackList = ListBuffer[Int]()
+    val undoBlackList = ListBuffer[Int]()
+    val blankBlackList = ListBuffer[Int]()
     ids.foreach(id => {
       if (skipUndo && isUndo(id)) {
-        blackList.append(getParentId(id))
+        undoBlackList.append(getParentId(id))
       }
       if (skipBlank && isBlank(id)) {
-        blackList.append(id)
+        blankBlackList.append(id)
       }
     })
-    ids.diff(blackList)
+    Map[String, List[Int]](
+      ("ids", ids.diff(undoBlackList ++ blankBlackList).toList),
+      ("undo", undoBlackList.toList),
+      ("blank", blankBlackList.toList)
+    )
   }
 
   def getDate(revid: Int): Option[String] = {
@@ -107,12 +112,23 @@ class RevisionsParser (api : MediaWikiAPI, lang : String, title : String, direct
   }
 
   def getParentId(revid: Int): Int = {
-    var parentid = 0
+    var parentId = 0
     val revision = getRevision(revid)
     if (revision.isDefined) {
-      parentid = (revision.get \ "parentid").as[JsNumber].value.toIntExact
+      parentId = (revision.get \ "parentid").as[JsNumber].value.toIntExact
     }
-    parentid
+    var newParentId = parentId
+    if (isUndo(revid)) {
+      for (revId2 <- getIds()) {
+        if (revId2 == parentId) {
+          newParentId = getParentId(revId2)
+        }
+      }
+    }
+    if (isBlank(newParentId)) {
+      newParentId = getParentId(newParentId)
+    }
+    newParentId
   }
 
   def getAuthor(revid: Int): String = {
