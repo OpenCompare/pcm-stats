@@ -14,7 +14,6 @@ import scala.collection.mutable.ListBuffer
  * Created by smangin on 31/07/15.
  */
 class DatabaseSqlite(path : String) extends DatabaseInterface {
-
   // Time
   val cTime = LocalDateTime.now()
   val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
@@ -37,6 +36,7 @@ class DatabaseSqlite(path : String) extends DatabaseInterface {
   private val metricModel = List(
     "id INTEGER REFERENCES revisions(id) ON UPDATE CASCADE",
     "name TEXT",
+    "originalName TEXT",
     "date DATETIME",
     "compareToId INTEGER REFERENCES revisions(id) ON UPDATE CASCADE",
     "nbMatrices INTEGER",
@@ -119,6 +119,19 @@ class DatabaseSqlite(path : String) extends DatabaseInterface {
   def isBusy(): Boolean = {
     queue.isStopped
   }
+
+  def revisionExists(id: Int): Boolean = {
+    val job = new SQLiteJob[Boolean]() {
+      protected def job(connection : SQLiteConnection): Boolean = {
+        // this method is called from database thread and passes the connection
+        val exists = connection.prepare("SELECT id FROM revisions WHERE id=" + id)
+        exists.step()
+        exists.hasRow
+      }
+    }
+    queue.execute[Boolean, SQLiteJob[Boolean]](job).complete()
+  }
+
 
   def createRevision(fields : Map[String, Any]): Option[Int] = {
     val id = fields.apply("id").asInstanceOf[Int]

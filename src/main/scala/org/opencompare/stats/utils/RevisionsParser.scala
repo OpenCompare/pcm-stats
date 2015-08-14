@@ -17,6 +17,10 @@ class RevisionsParser (api : MediaWikiAPI, lang : String, title : String, direct
   var skipUndo = false
   var skipBlank = false
   private val revisions = api.getRevisionFromTitle(lang, title, direction)
+  private val ids = for (revision <- revisions) yield {
+    (revision \ "revid").as[JsNumber].value.toIntExact
+  }
+
   private var currentId = -1
   private val blankValues= List(
     "WP:AES",
@@ -41,14 +45,7 @@ class RevisionsParser (api : MediaWikiAPI, lang : String, title : String, direct
     (revision \ "revid").as[JsNumber].value.toIntExact
   }
 
-  private def getIds(): List[Int] = {
-    for (revision <- revisions) yield {
-      (revision \ "revid").as[JsNumber].value.toIntExact
-    }
-  }
-
   def getIds(skipUndo : Boolean = false, skipBlank : Boolean = false): Map[String, List[Int]] = {
-    val ids = getIds()
     val undoBlackList = ListBuffer[Int]()
     val blankBlackList = ListBuffer[Int]()
     ids.foreach(id => {
@@ -116,19 +113,14 @@ class RevisionsParser (api : MediaWikiAPI, lang : String, title : String, direct
     val revision = getRevision(revid)
     if (revision.isDefined) {
       parentId = (revision.get \ "parentid").as[JsNumber].value.toIntExact
-    }
-    var newParentId = parentId
-    if (isUndo(revid)) {
-      for (revId2 <- getIds()) {
-        if (revId2 == parentId) {
-          newParentId = getParentId(revId2)
-        }
+      if (isUndo(revid)) {
+        parentId = getParentId(ids.find(id => (id == parentId)).get)
+      }
+      if (isBlank(parentId)) {
+        parentId = getParentId(parentId)
       }
     }
-    if (isBlank(newParentId)) {
-      newParentId = getParentId(newParentId)
-    }
-    newParentId
+    parentId
   }
 
   def getAuthor(revid: Int): String = {

@@ -31,6 +31,10 @@ class RevisionsComparator(db : DatabaseSqlite, api: MediaWikiAPI, wikitextPath: 
     metrics.toList
   }
 
+  def nameCleaner(title : String, name : String): String = {
+    name.replaceFirst(title + " -", "").toLowerCase.replaceAll(" ", "")
+  }
+
   def compare(title: String, revisions: List[Map[String, Any]]): Map[String, Int] = {
     metrics = ListBuffer.empty
     var revisionsDone = 0
@@ -73,7 +77,7 @@ class RevisionsComparator(db : DatabaseSqlite, api: MediaWikiAPI, wikitextPath: 
         val oldestContainersSize = oldestContainers.size
 
         // Get if container has too much unnamed matrix
-        val tooUnamedMatrices = newestContainers.count(container => container.getPcm.getName == (title + " -   ")) > 1
+        val tooUnamedMatrices = newestContainers.count(container => nameCleaner(title, container.getPcm.getName) == "") > 1
 
         // Get containers size
         val newestContainersSize = newestContainers.size
@@ -81,13 +85,15 @@ class RevisionsComparator(db : DatabaseSqlite, api: MediaWikiAPI, wikitextPath: 
         // For each matrix in the page
         for (newestContainer <- newestContainers) {
           newestPcm = newestContainer.getPcm
+          var name = nameCleaner(title, newestPcm.getName)
 
           // Search for a matrix in the parent page only if not empty
           if (oldestContainersSize >= 1) {
             var oldestContainer = Option[PCMContainer](oldestContainers.get(0))
             if (oldestContainersSize > 1) {
               // FIXME : A bug is present on opencompare while parsing multiple matrices inside the same section => same name !
-              oldestContainer = oldestContainers.find(container => container.getPcm.getName == newestPcm.getName)
+              // We have to cleaned up all the matrix name to prevent upper/lower case and space modification
+              oldestContainer = oldestContainers.find(container => nameCleaner(title, container.getPcm.getName) == name)
             }
 
             // If matrix has not been found
@@ -103,24 +109,24 @@ class RevisionsComparator(db : DatabaseSqlite, api: MediaWikiAPI, wikitextPath: 
             }
             if (oldestContainer.isDefined) {
               oldestPcm = oldestContainer.get.getPcm
-              addMetric(newestId, oldestId, newestPcm, oldestPcm, DateTime.parse(date), newestContainersSize, oldestContainersSize)
+              addMetric(title, newestId, oldestId, newestPcm, oldestPcm, DateTime.parse(date), newestContainersSize, oldestContainersSize)
             } else {
               // New matrix or renamed !
               val factory = new PCMFactoryImpl
               val pcm = factory.createPCM()
-              addMetric(newestId, oldestId, newestPcm, pcm, DateTime.parse(date), newestContainersSize, oldestContainersSize)
-              logger.warn(title + " -- " + newestId + " -- referenced matrix not found in revision " + oldestId)
+              addMetric(title, newestId, oldestId, newestPcm, pcm, DateTime.parse(date), newestContainersSize, oldestContainersSize)
+              logger.warn(newestPcm.getName + " -- " + newestId + " -- referenced matrix not found in revision " + oldestId)
             }
           } else {
             // By the miracle of time, matrix appears
-            newMatrices(newestId, DateTime.parse(date), newestContainers)
+            newMatrices(title, newestId, DateTime.parse(date), newestContainers)
             logger.debug(title + " -- " + newestId + " -- new page with " + newestContainersSize + " matrix(ces)")
           }
         }
         revisionsDone += 1
       } catch {
         case e: NoParentException => {
-          newMatrices(newestId, DateTime.parse(date), newestContainers)
+          newMatrices(title, newestId, DateTime.parse(date), newestContainers)
           logger.debug(title + " -- " + newestId + " -- first page with " + newestContainersSize + " matrix(ces)")
         }
         case e: Exception => {
@@ -133,11 +139,12 @@ class RevisionsComparator(db : DatabaseSqlite, api: MediaWikiAPI, wikitextPath: 
     Map[String, Int](("revisionsDone", revisionsDone), ("revisionsSize", revisionsSize))
   }
 
-  private def addMetric (oldId: Int, newId: Int, oldestPcm: PCM, newestPcm: PCM, date: DateTime, oldSize: Int, newSize: Int): Unit = {
+  private def addMetric (title : String, oldId: Int, newId: Int, oldestPcm: PCM, newestPcm: PCM, date: DateTime, oldSize: Int, newSize: Int): Unit = {
     val diff = newestPcm.diff (oldestPcm, new ComplexePCMElementComparator)
     metrics.add (Map[String, Any] (
     ("id", newId),
-    ("name", newestPcm.getName),
+    ("name", nameCleaner(title, newestPcm.getName)),
+    ("originalName", newestPcm.getName),
     ("date", date),
     ("parentId", oldId),
     ("nbMatrices", newSize),
@@ -150,12 +157,13 @@ class RevisionsComparator(db : DatabaseSqlite, api: MediaWikiAPI, wikitextPath: 
     ) )
   }
 
-  private def newMatrices (id: Int, date: DateTime, containers: List[PCMContainer] ): Unit = {
+  private def newMatrices (title : String, id: Int, date: DateTime, containers: List[PCMContainer] ): Unit = {
     for (container <- containers) {
       val pcm = container.getPcm
       metrics.add (Map[String, Any] (
       ("id", id),
-      ("name", pcm.getName),
+      ("name", nameCleaner(title, pcm.getName)),
+      ("originalName", pcm.getName),
       ("date", date),
       ("parentId", 0),
       ("nbMatrices", containers.size),

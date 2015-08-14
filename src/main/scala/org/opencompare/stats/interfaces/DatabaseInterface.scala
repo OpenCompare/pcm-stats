@@ -10,12 +10,10 @@ trait DatabaseInterface {
   def initialize(): DatabaseInterface
   def browseRevisions(): List[Map[String, Any]]
   def browseMetrics(): List[Map[String, Any]]
-  def browseMatrices(): List[Map[String, Any]]
   def execute(sql : String)
   def isBusy(): Boolean
   def deleteRevision(id : Int)
   def createMetrics(fields : Map[String, Any]): Option[Int]
   def createRevision(fields : Map[String, Any]): Option[Int]
-  def createMatrix(fields : Map[String, Any]): Option[Int]
 
 }
