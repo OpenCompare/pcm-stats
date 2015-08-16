@@ -32,7 +32,7 @@ class RevisionsComparator(db : DatabaseSqlite, api: MediaWikiAPI, wikitextPath: 
   }
 
   def nameCleaner(title : String, name : String): String = {
-    name.replaceFirst(title + " -", "").toLowerCase.replaceAll(" ", "")
+    name.replaceFirst(title, "").toLowerCase.replaceAll(" ", "").replaceFirst("-", "")
   }
 
   def compare(title: String, revisions: List[Map[String, Any]]): Map[String, Int] = {
@@ -43,7 +43,7 @@ class RevisionsComparator(db : DatabaseSqlite, api: MediaWikiAPI, wikitextPath: 
     var newestPcm: PCM = null
 
     // Group by revision id to spare some miner access
-    revisions.sortBy(revision => revision.apply("id").asInstanceOf[Int]).foreach(revision => {
+    revisions.sortBy(revision => revision.apply("id").asInstanceOf[Int]).reverse.foreach(revision => {
 
       val newestId = revision.get("id").get.asInstanceOf[Int]
       val oldestId = revision.get("parentId").get.asInstanceOf[Int]
@@ -104,7 +104,7 @@ class RevisionsComparator(db : DatabaseSqlite, api: MediaWikiAPI, wikitextPath: 
               try {
                 oldestContainer = Option(oldestContainers.apply(newestContainerIndex))
               } catch {
-                case _: Exception => println
+                case _: Exception => Nil
               }
             }
             if (oldestContainer.isDefined) {
@@ -118,9 +118,10 @@ class RevisionsComparator(db : DatabaseSqlite, api: MediaWikiAPI, wikitextPath: 
               logger.warn(newestPcm.getName + " -- " + newestId + " -- referenced matrix not found in revision " + oldestId)
             }
           } else {
-            // By the miracle of time, matrix appears
-            newMatrices(title, newestId, DateTime.parse(date), newestContainers)
-            logger.debug(title + " -- " + newestId + " -- new page with " + newestContainersSize + " matrix(ces)")
+            val factory = new PCMFactoryImpl
+            val pcm = factory.createPCM()
+            addMetric(title, newestId, oldestId, newestPcm, pcm, DateTime.parse(date), newestContainersSize, oldestContainersSize)
+            logger.debug(title + " -- " + newestId + " -- page with a new matrix")
           }
         }
         revisionsDone += 1
@@ -148,7 +149,7 @@ class RevisionsComparator(db : DatabaseSqlite, api: MediaWikiAPI, wikitextPath: 
     ("date", date),
     ("parentId", oldId),
     ("nbMatrices", newSize),
-    ("diffMatrices", (newSize - oldSize) ),
+    ("diffMatrices", (oldSize - newSize) ),
     ("newFeatures", diff.getFeaturesOnlyInPCM1.size () ),
     ("delFeatures", diff.getFeaturesOnlyInPCM2.size () ),
     ("newProducts", diff.getProductsOnlyInPCM1.size () ),

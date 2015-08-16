@@ -2,7 +2,7 @@ package org.opencompare.stats.utils
 
 import org.opencompare.io.wikipedia.io.MediaWikiAPI
 import org.opencompare.stats.interfaces.RevisionsParserInterface
-import play.api.libs.json.{JsNumber, JsObject, JsResultException, JsString}
+import play.api.libs.json._
 
 import scala.collection.mutable.ListBuffer
 
@@ -31,10 +31,10 @@ class RevisionsParser (api : MediaWikiAPI, lang : String, title : String, direct
   private val undoValues= List(
     "WP:UNDO",
     "WP:CLUEBOT",
-    "WP:\"",
     "WP:REVERT",
     "WP:REV",
-    "WP:RV"
+    "WP:RV",
+    "Undid revision"
   )
 
   private def getRevision(id: Int): Option[JsObject] = {
@@ -47,10 +47,14 @@ class RevisionsParser (api : MediaWikiAPI, lang : String, title : String, direct
 
   def getIds(skipUndo : Boolean = false, skipBlank : Boolean = false): Map[String, List[Int]] = {
     val undoBlackList = ListBuffer[Int]()
+    val suppressedBlackList = ListBuffer[Int]()
     val blankBlackList = ListBuffer[Int]()
     ids.foreach(id => {
       if (skipUndo && isUndo(id)) {
         undoBlackList.append(getParentId(id))
+      }
+      if (isSuppressed(id)) {
+        suppressedBlackList.append(id)
       }
       if (skipBlank && isBlank(id)) {
         blankBlackList.append(id)
@@ -59,7 +63,8 @@ class RevisionsParser (api : MediaWikiAPI, lang : String, title : String, direct
     Map[String, List[Int]](
       ("ids", ids.diff(undoBlackList ++ blankBlackList).toList),
       ("undo", undoBlackList.toList),
-      ("blank", blankBlackList.toList)
+      ("blank", blankBlackList.toList),
+      ("suppressed", suppressedBlackList.toList)
     )
   }
 
@@ -70,6 +75,20 @@ class RevisionsParser (api : MediaWikiAPI, lang : String, title : String, direct
     } else {
       None
     }
+  }
+
+  def isSuppressed(revid: Int): Boolean = {
+    var suppressed = false
+    val revision = getRevision(revid)
+    if (revision.isDefined) {
+      try {
+        (revision.get \ "suppresses").as[JsString].value.toString
+        suppressed = true
+      } catch {
+        case _ : Exception => suppressed = false
+      }
+    }
+    suppressed
   }
 
   def isBlank(revid: Int): Boolean = {
@@ -113,6 +132,9 @@ class RevisionsParser (api : MediaWikiAPI, lang : String, title : String, direct
     val revision = getRevision(revid)
     if (revision.isDefined) {
       parentId = (revision.get \ "parentid").as[JsNumber].value.toIntExact
+      if (isSuppressed(revid)) {
+        parentId = getParentId(ids.find(id => (id == parentId)).get)
+      }
       if (isUndo(revid)) {
         parentId = getParentId(ids.find(id => (id == parentId)).get)
       }

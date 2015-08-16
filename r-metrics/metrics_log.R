@@ -40,11 +40,11 @@ plot_colors <- c("green", "red", "blue", "orange", "brown", "black", "deepskyblu
 
 # get the range for the x and y axis
 daterange <- range(revisions$year, matrices$year, metrics$year)
-ymax <- max(metrics$np, metrics$dp, metrics$nf, metrics$df, matrices$nm, matrices$cc, revisions$number)
+ymax <- max(metrics$np, metrics$dp, metrics$nf, metrics$df, matrices$nm, metrics$cc, revisions$number)
 
 # Define ticks and names
 xticks = seq(daterange[1], daterange[2], 1)
-yticks = c(1, 2, 5, 10, 30, 100, 300, 1000, 3000, 10000, 30000, 50000, 100000, 150000, 200000, 250000, 300000)
+yticks = c(1, 2, 5, 10, 30, 100, 300, 1000, 3000, 10000, 30000, 50000, 100000, 150000, 200000)
 lablist.x <- as.vector(xticks)
 lablist.y <- as.vector(yticks)
 column_names <- c("New products", "Deleted products", "New features", "Deleted features", "Changed cells", "Matrices", "Revisions")

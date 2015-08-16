@@ -132,7 +132,6 @@ class DatabaseSqlite(path : String) extends DatabaseInterface {
     queue.execute[Boolean, SQLiteJob[Boolean]](job).complete()
   }
 
-
   def createRevision(fields : Map[String, Any]): Option[Int] = {
     val id = fields.apply("id").asInstanceOf[Int]
     val title = fields.apply("title").asInstanceOf[String].replace("'", "")

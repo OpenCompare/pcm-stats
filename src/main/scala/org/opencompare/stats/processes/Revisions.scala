@@ -36,6 +36,7 @@ class Revisions(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitext
     var revisionsUndo = synchronized(0)
     var revisionsBlank = synchronized(0)
     var revisionsNew = synchronized(0)
+    var revisionsDel = synchronized(0)
 
     // Parse wikipedia page list
     groups.foreach(group => {
@@ -53,6 +54,7 @@ class Revisions(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitext
               revisionsSize += ids.apply("ids").size
               revisionsUndo += ids.apply("undo").size
               revisionsBlank += ids.apply("blank").size
+              revisionsDel += ids.apply("suppressed").size
               for (revid: Int <- ids.apply("ids")) {
 
                 val fileName = file + revid + ".wikitext"
@@ -139,6 +141,7 @@ class Revisions(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitext
     logger.info("Nb. revisions size: " + revisionsSize)
     logger.info("Nb. revisions done: " + revisionsDone)
     logger.info("Nb. new revisions: " + revisionsNew)
+    logger.info("Nb. revisions suppressed: " + revisionsDel)
     logger.info("Nb. undo revisions: " + revisionsUndo)
     logger.info("Nb. blank revisions: " + revisionsBlank)
     logger.debug("Waiting for database threads to terminate...")
