@@ -17,6 +17,7 @@ class Metrics(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitextPa
   logger.setLevel(level)
 
   def compute(): Unit = {
+    logger.info("Started...")
     val revisions = db.browseRevisions()
     val pages = revisions.groupBy(line => {
       line.get("title").get
@@ -37,43 +38,28 @@ class Metrics(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitextPa
       val comparator = new RevisionsComparator(db, api, wikitextPath, pcmPath, appender, level)
       val thread = new Thread(groupThread, title) {
         override def run() {
-          try {
-            val result: Map[String, Int] = comparator.compare(title, content)
-            for (line : Map[String, Any] <- comparator.getMetrics()) {
-              try {
-                db.createMetrics(line)
-              } catch {
-                case e: Exception => {
-                  logger.error(title + " -- " + line.apply("id").asInstanceOf[Int] + " -- " + e.getLocalizedMessage)
-                  logger.error(e.getStackTraceString)
-                }
-              }
-            }
-            val log = pageDone + "/" + pagesSize + "\t[" + result.apply("revisionsDone") + "/" + result.apply("revisionsSize") + "\trev.]\t" + title
-            logger.info(log)
-            pageDone += 1
-            revisionDone += result.apply("revisionsDone")
-          } catch {
-            case e: Exception => {
-              logger.error(title + " => " + e.getLocalizedMessage)
-              logger.error(e.getStackTraceString)
-            }
-          }
+          val result: Map[String, Int] = comparator.compare(title, content)
+          comparator.getMetrics().foreach(line => {
+            db.createMetrics(line)
+          })
+          //logger.info(pageDone + "/" + pagesSize + "\t[" + result.apply("revisionsDone") + "/" + result.apply("revisionsSize") + "\trev.]\t" + title)
+          revisionDone += result.apply("revisionsDone")
+          pageDone += 1
         }
       }
       thread.join()
       thread.start()
       Thread.sleep(100) // slow the loop down a bit
     })
-    logger.debug("All threads started...")
-    while (groupThread.activeCount() > 0) {}
-    logger.debug("Nb. pages done (estimation): " + pageDone)
-    logger.debug("Nb. revisions done (estimation): " + revisionDone)
-    logger.debug("Waiting for database threads to terminate...")
-    while (db.isBusy()) {}
+    logger.info("All threads started, waiting to finish...")
+    while (groupThread.activeCount() > 0) {print(".")}
+    logger.info("Nb. pages done (estimation): " + pageDone)
+    logger.info("Nb. revisions done (estimation): " + revisionDone)
+    logger.info("Waiting for database threads to terminate...")
+    while (db.isBusy()) {print(".")}
     val done = db.browseMetrics()
-    logger.debug("Nb. comparisons done: " + done.size)
-    logger.debug("process finished.")
+    logger.info("Nb. comparisons done: " + done.size)
+    logger.info("process finished.")
   }
 }
 
