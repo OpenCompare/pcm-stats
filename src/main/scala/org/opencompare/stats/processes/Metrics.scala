@@ -52,11 +52,11 @@ class Metrics(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitextPa
       Thread.sleep(100) // slow the loop down a bit
     })
     logger.info("All threads started, waiting to finish...")
-    while (groupThread.activeCount() > 0) {print(".")}
+    while (groupThread.activeCount() > 0) {}
     logger.info("Nb. pages done (estimation): " + pageDone)
     logger.info("Nb. revisions done (estimation): " + revisionDone)
     logger.info("Waiting for database threads to terminate...")
-    while (db.isBusy()) {print(".")}
+    while (db.isBusy()) {}
     val done = db.browseMetrics()
     logger.info("Nb. comparisons done: " + done.size)
     logger.info("process finished.")
