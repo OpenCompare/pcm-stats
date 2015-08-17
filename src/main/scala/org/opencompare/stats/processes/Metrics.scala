@@ -21,12 +21,16 @@ class Metrics(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitextPa
     val pages = revisions.groupBy(line => {
       line.get("title").get
     })
+    val authors = revisions.groupBy(line => {
+      line.get("author").get
+    })
     var pageDone = synchronized[Int](1)
     var revisionDone = synchronized[Int](0)
     val pagesSize = pages.size
 
     logger.debug("Nb. total pages: " + pagesSize)
     logger.debug("Nb. total revisions: " + revisions.size)
+    logger.debug("Nb. authors: " + authors.size)
     pages.foreach(page => {
       val title = page._1.toString
       val content = synchronized(page._2)

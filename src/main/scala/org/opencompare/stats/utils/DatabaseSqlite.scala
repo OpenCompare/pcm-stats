@@ -45,8 +45,9 @@ class DatabaseSqlite(path : String) extends DatabaseInterface {
     "delFeatures INTEGER",
     "newProducts INTEGER",
     "delProducts INTEGER",
-    "changedCells INTEGER",
-    "CONSTRAINT pk PRIMARY KEY (id, name, date, compareToId, nbMatrices)"
+    "changedCells INTEGER"
+    //"CONSTRAINT pk PRIMARY KEY (id, name, date, compareToId, nbMatrices)"
+
   )
 
   def initialize(): DatabaseSqlite = {
@@ -143,21 +144,15 @@ class DatabaseSqlite(path : String) extends DatabaseInterface {
     val job = new SQLiteJob[Option[Int]]() {
       protected def job(connection : SQLiteConnection): Option[Int] = {
         // this method is called from database thread and passes the connection
-        var result : Option[Int] = Option.empty
-        val exists = connection.prepare("SELECT id FROM revisions WHERE id=" + id)
-        exists.step()
-        if (!exists.hasRow) {
-          connection.prepare("INSERT INTO revisions VALUES (" +
-            id + ", " +
-            parentId + ", " +
-            "'" + title + "', " +
-            "'" + date + "', " +
-            "'" + lang + "', " +
-            "'" + author + "')"
-          ).step
-          result = Option(id)
-        }
-        result
+        connection.prepare("INSERT INTO revisions VALUES (" +
+          id + ", " +
+          parentId + ", " +
+          "'" + title + "', " +
+          "'" + date + "', " +
+          "'" + lang + "', " +
+          "'" + author + "')"
+        ).step
+        Option(id)
       }
     }
     queue.execute[Option[Int], SQLiteJob[Option[Int]]](job).complete()
@@ -181,14 +176,14 @@ class DatabaseSqlite(path : String) extends DatabaseInterface {
       protected def job(connection : SQLiteConnection): Option[Int] = {
         // this method is called from database thread and passes the connection
         var result : Option[Int] = Option.empty
-        val exists = connection.prepare("SELECT id FROM metrics WHERE " +
-            "id=" + id + " AND " +
-            "name='" + name + "' AND " +
-            "date='" + date + "' AND " +
-            "compareToId=" + parentId + " AND " +
-            "nbMatrices=" + nbMatrices)
-        exists.step()
-        if (!exists.hasRow) {
+        //val exists = connection.prepare("SELECT id FROM metrics WHERE " +
+        //    "id=" + id + " AND " +
+        //    "originalName='" + originalName + "' AND " +
+        //    "date='" + date + "' AND " +
+        //    "compareToId=" + parentId + " AND " +
+        //    "nbMatrices=" + nbMatrices)
+        //exists.step()
+        //if (!exists.hasRow) {
           connection.prepare("INSERT INTO metrics VALUES (" +
             id + ", " +
             "'" + name + "', " +
@@ -204,7 +199,7 @@ class DatabaseSqlite(path : String) extends DatabaseInterface {
             changedCells + ")"
           ).step
           result = Option(id)
-        }
+        //}
         result
       }
     }
