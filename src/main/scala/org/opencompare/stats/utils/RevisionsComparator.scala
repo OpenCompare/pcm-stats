@@ -102,7 +102,21 @@ class RevisionsComparator(db : DatabaseSqlite, api: MediaWikiAPI, wikitextPath: 
               // so get its position on the oldest revision based on its actual position
               val newestContainerIndex = newestContainers.indexOf(newestContainer)
               if (oldestContainersSize >= newestContainerIndex) {
-                oldestContainer = Option(oldestContainers.apply(newestContainerIndex))
+                try {
+                  oldestContainer = Option(oldestContainers.apply(newestContainerIndex))
+                } catch {
+                  //scala.collection.LinearSeqOptimized$class.apply(LinearSeqOptimized.scala:65)
+                  //scala.collection.immutable.List.apply(List.scala:84)
+                  //org.opencompare.stats.utils.RevisionsComparator$$anonfun$compare$2$$anonfun$apply$1.apply(RevisionsComparator.scala:105)
+                  //org.opencompare.stats.utils.RevisionsComparator$$anonfun$compare$2$$anonfun$apply$1.apply(RevisionsComparator.scala:86)
+                  //scala.collection.immutable.List.foreach(List.scala:381)
+                  //org.opencompare.stats.utils.RevisionsComparator$$anonfun$compare$2.apply(RevisionsComparator.scala:86)
+                  //org.opencompare.stats.utils.RevisionsComparator$$anonfun$compare$2.apply(RevisionsComparator.scala:46)
+                  //scala.collection.immutable.List.foreach(List.scala:381)
+                  //org.opencompare.stats.utils.RevisionsComparator.compare(RevisionsComparator.scala:46)
+                  //org.opencompare.stats.processes.Metrics$$anonfun$compute$1$$anon$1.run(Metrics.scala:41)
+                  case e : Exception => Nil
+                }
               }
             }
             if (oldestContainer.isDefined) {
