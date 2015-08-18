@@ -26,10 +26,12 @@ class Revisions(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitext
   database_logger.addAppender(appender)
 
   def compute(groupBy : Int) {
+    logger.info("Started...")
     val pages = reader.allWithHeaders()
     val groups = pages.grouped(groupBy).toList // Performance issue hack
     // Statistical vars
-    var pagesSize = pages.size
+     var authors = synchronized(0)
+   var pagesSize = pages.size
     var pagesDone = synchronized(0)
     var revisionsDone = synchronized(0)
     var revisionsSize = synchronized(0)
@@ -62,22 +64,15 @@ class Revisions(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitext
                 val parentId = revision.getParentId(revid)
                 // Keep an eye on already existing revisions
                 if (!db.revisionExists(revid)) {
-                  try {
-                    db.createRevision(Map(
-                      ("id", revid),
-                      ("title", pageTitle),
-                      ("date", DateTime.parse(revision.getDate(revid).get)),
-                      ("author", revision.getAuthor(revid)),
-                      ("parentId", parentId),
-                      ("lang", pageLang)
-                    ))
-                    revisionsNew += 1
-                  } catch {
-                    case e: Exception => {
-                      database_logger.error(pageTitle + " -- " + revid + " -- " + e.getLocalizedMessage)
-                      database_logger.error(e.getStackTraceString)
-                    }
-                  }
+                  db.createRevision(Map(
+                    ("id", revid),
+                    ("title", pageTitle),
+                    ("date", DateTime.parse(revision.getDate(revid).get)),
+                    ("author", revision.getAuthor(revid)),
+                    ("parentId", parentId),
+                    ("lang", pageLang)
+                  ))
+                  revisionsNew += 1
                 } else {
                   revisionsDone += 1
                 }
@@ -88,27 +83,17 @@ class Revisions(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitext
                   try {
                     wikitext = revision.getWikitext(revid)
                   } catch {
-                    case e: Exception => {
-                      logger.error(pageTitle + " -- " + revid + " -- " + e.getLocalizedMessage)
-                      logger.error(e.getStackTraceString)
-                    }
+                    case _ : Exception => Nil
                   }
                   // Manage undo empty revisions which has not been indicated by the revision parser(based on wikipedia metadata)
                   if (wikitext == "") {
-                    try {
-                      // We change the parent revision of the parent revision with the revision which is the parent revision of the current revision... Gniark gniark
-                      var revidToCompareWith = 0
-                      for (revId2 <- revision.getIds().apply("ids")) {
-                        if (revision.getParentId(revId2) == revid) {
-                          db.deleteRevision(revid)
-                          db.updateRevisionParentId(revId2, parentId)
-                          revisionsBlank += 1
-                        }
-                      }
-                    } catch {
-                      case e: Exception => {
-                        database_logger.error(pageTitle + " -- " + revid + " -- " + e.getLocalizedMessage)
-                        database_logger.error(e.getStackTraceString)
+                    // We change the parent revision of the parent revision with the revision which is the parent revision of the current revision... Gniark gniark
+                    var revidToCompareWith = 0
+                    for (revId2 <- revision.getIds().apply("ids")) {
+                      if (revision.getParentId(revId2) == revid) {
+                        db.deleteRevision(revid)
+                        db.updateRevisionParentId(revId2, parentId)
+                        revisionsBlank += 1
                       }
                     }
                   } else {
@@ -120,7 +105,7 @@ class Revisions(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitext
 
               }
               pagesDone += 1
-              logger.info(pagesDone + "/" + pagesSize + "\t[" + ids.apply("ids").size + "/" + revision.getIds().apply("ids").size + " rev." + "]\t" + pageTitle)
+              //logger.info(pagesDone + "/" + pagesSize + "\t[" + ids.apply("ids").size + "/" + revision.getIds().apply("ids").size + " rev." + "]\t" + pageTitle)
             } catch {
               case e: Exception => {
                 logger.error(pageTitle + " => " + e.getLocalizedMessage)
@@ -134,7 +119,7 @@ class Revisions(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitext
       thread.start()
       Thread.sleep(100) // slow the loop down a bit
     })
-    logger.debug("All threads started...")
+    logger.info("All threads started, waiting to finish...")
     while (groupThread.activeCount() > 0) {}
     logger.info("Nb. total pages: " + pagesSize)
     logger.info("Nb. pages done: " + pagesDone)

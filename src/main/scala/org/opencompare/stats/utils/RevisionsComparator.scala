@@ -97,16 +97,17 @@ class RevisionsComparator(db : DatabaseSqlite, api: MediaWikiAPI, wikitextPath: 
             }
 
             // If matrix has not been found
-            if (!oldestContainer.isDefined) {
-              // It could have a different name (newly created section or removed)
-              // so get its position on the oldest revision based on its actual position
-              val newestContainerIndex = newestContainers.indexOf(newestContainer)
-              try {
-                oldestContainer = Option(oldestContainers.apply(newestContainerIndex))
-              } catch {
-                case _: Exception => Nil
-              }
-            }
+            // TODO : find a better way to detect almost same matrices
+            //if (!oldestContainer.isDefined) {
+            //  // FIXME : It could have a different name (newly created section or removed)
+            //  // so get its position on the oldest revision based on its actual position
+            //  val newestContainerIndex = newestContainers.indexOf(newestContainer) - 1
+            //  if (oldestContainersSize >= newestContainerIndex) {
+            //    println(oldestContainersSize)
+            //    println(newestContainerIndex)
+            //    oldestContainer = Option[PCMContainer](oldestContainers.get(newestContainerIndex))
+            //  }
+            //}
             if (oldestContainer.isDefined) {
               oldestPcm = oldestContainer.get.getPcm
               addMetric(title, newestId, oldestId, newestPcm, oldestPcm, DateTime.parse(date), newestContainersSize, oldestContainersSize)
@@ -115,20 +116,20 @@ class RevisionsComparator(db : DatabaseSqlite, api: MediaWikiAPI, wikitextPath: 
               val factory = new PCMFactoryImpl
               val pcm = factory.createPCM()
               addMetric(title, newestId, oldestId, newestPcm, pcm, DateTime.parse(date), newestContainersSize, oldestContainersSize)
-              logger.warn(newestPcm.getName + " -- " + newestId + " -- referenced matrix not found in revision " + oldestId)
+              //logger.warn(newestPcm.getName + " -- " + newestId + " -- referenced matrix not found in revision " + oldestId)
             }
           } else {
             val factory = new PCMFactoryImpl
             val pcm = factory.createPCM()
             addMetric(title, newestId, oldestId, newestPcm, pcm, DateTime.parse(date), newestContainersSize, oldestContainersSize)
-            logger.debug(title + " -- " + newestId + " -- page with a new matrix")
+            //logger.debug(title + " -- " + newestId + " -- page with a new matrix")
           }
         }
         revisionsDone += 1
       } catch {
         case e: NoParentException => {
           newMatrices(title, newestId, DateTime.parse(date), newestContainers)
-          logger.debug(title + " -- " + newestId + " -- first page with " + newestContainersSize + " matrix(ces)")
+          //logger.debug(title + " -- " + newestId + " -- first page with " + newestContainersSize + " matrix(ces)")
         }
         case e: Exception => {
           logger.error(title + " -- parentId " + oldestId + " -- " + e.getLocalizedMessage)

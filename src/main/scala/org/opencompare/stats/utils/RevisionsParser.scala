@@ -81,12 +81,7 @@ class RevisionsParser (api : MediaWikiAPI, lang : String, title : String, direct
     var suppressed = false
     val revision = getRevision(revid)
     if (revision.isDefined) {
-      try {
-        (revision.get \ "suppresses").as[JsString].value.toString
-        suppressed = true
-      } catch {
-        case _ : Exception => suppressed = false
-      }
+      suppressed = revision.get.keys.contains("suppressed")
     }
     suppressed
   }
@@ -95,15 +90,13 @@ class RevisionsParser (api : MediaWikiAPI, lang : String, title : String, direct
     var blank = false
     val revision = getRevision(revid)
     if (revision.isDefined) {
-      try {
+      if (revision.get.keys.contains("comment")) {
         val comment = (revision.get \ "comment")
         blankValues.foreach(value => {
           if (comment.as[JsString].value.contains(value)) {
             blank = true
           }
         })
-      } catch {
-        case e : JsResultException => false
       }
     }
     blank
@@ -113,15 +106,13 @@ class RevisionsParser (api : MediaWikiAPI, lang : String, title : String, direct
     var undo = false
     val revision = getRevision(revid)
     if (revision.isDefined) {
-      try {
+      if (revision.get.keys.contains("comment")) {
         val comment = (revision.get \ "comment")
         undoValues.foreach(value => {
           if (comment.as[JsString].value.contains(value)) {
             undo = true
           }
         })
-      } catch {
-        case e : JsResultException => false
       }
     }
     undo
@@ -149,7 +140,9 @@ class RevisionsParser (api : MediaWikiAPI, lang : String, title : String, direct
     var author = ""
     val revision = getRevision(revid)
     if (revision.isDefined) {
-      author = (revision.get \ "user").as[JsString].value
+      if (revision.get.keys.contains("comment")) {
+        author = (revision.get \ "user").as[JsString].value
+      }
     }
     author
   }

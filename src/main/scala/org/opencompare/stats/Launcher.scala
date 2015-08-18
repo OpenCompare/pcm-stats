@@ -38,7 +38,7 @@ object Launcher extends App {
 
   val revisions = new Revisions(api, db, cTime.format(formatter), wikitextPath, fh, level)
   val metrics = new Metrics(api, db, cTime.format(formatter), wikitextPath, pcmPath, fh, level)
-  revisions.compute(10)
+  revisions.compute(30)
   metrics.compute()
   logger.info("Launcher has stopped.")
 }
