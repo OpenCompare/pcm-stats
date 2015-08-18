@@ -97,14 +97,17 @@ class RevisionsComparator(db : DatabaseSqlite, api: MediaWikiAPI, wikitextPath: 
             }
 
             // If matrix has not been found
-            if (!oldestContainer.isDefined) {
-              // FIXME : It could have a different name (newly created section or removed)
-              // so get its position on the oldest revision based on its actual position
-              val newestContainerIndex = newestContainers.indexOf(newestContainer)
-              if (oldestContainersSize >= newestContainerIndex) {
-                oldestContainer = Option(oldestContainers.apply(newestContainerIndex))
-              }
-            }
+            // TODO : find a better way to detect almost same matrices
+            //if (!oldestContainer.isDefined) {
+            //  // FIXME : It could have a different name (newly created section or removed)
+            //  // so get its position on the oldest revision based on its actual position
+            //  val newestContainerIndex = newestContainers.indexOf(newestContainer) - 1
+            //  if (oldestContainersSize >= newestContainerIndex) {
+            //    println(oldestContainersSize)
+            //    println(newestContainerIndex)
+            //    oldestContainer = Option[PCMContainer](oldestContainers.get(newestContainerIndex))
+            //  }
+            //}
             if (oldestContainer.isDefined) {
               oldestPcm = oldestContainer.get.getPcm
               addMetric(title, newestId, oldestId, newestPcm, oldestPcm, DateTime.parse(date), newestContainersSize, oldestContainersSize)

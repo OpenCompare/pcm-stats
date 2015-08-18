@@ -30,7 +30,8 @@ class Revisions(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitext
     val pages = reader.allWithHeaders()
     val groups = pages.grouped(groupBy).toList // Performance issue hack
     // Statistical vars
-    var pagesSize = pages.size
+     var authors = synchronized(0)
+   var pagesSize = pages.size
     var pagesDone = synchronized(0)
     var revisionsDone = synchronized(0)
     var revisionsSize = synchronized(0)
@@ -78,7 +79,12 @@ class Revisions(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitext
                 // Get the wikitext if not in the folder or empty
                 if (!revisionFile.exists() || revisionFile.length() == 0) {
                   // Save wikitext
-                  var wikitext = revision.getWikitext(revid)
+                  var wikitext = ""
+                  try {
+                    wikitext = revision.getWikitext(revid)
+                  } catch {
+                    case _ : Exception => Nil
+                  }
                   // Manage undo empty revisions which has not been indicated by the revision parser(based on wikipedia metadata)
                   if (wikitext == "") {
                     // We change the parent revision of the parent revision with the revision which is the parent revision of the current revision... Gniark gniark
