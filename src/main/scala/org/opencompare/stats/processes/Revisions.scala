@@ -45,11 +45,11 @@ class Revisions(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitext
         try {
           val revision = new RevisionsParser(api, pageLang, pageTitle, "older")
           val ids = revision.getIds(true, true)
-          revisionsSize += ids.apply("ids").size
-          revisionsUndo += ids.apply("undo").size
-          revisionsBlank += ids.apply("blank").size
-          revisionsDel += ids.apply("suppressed").size
-          for (revid: Int <- ids.apply("ids")) {
+          revisionsSize += ids("ids").size
+          revisionsUndo += ids("undo").size
+          revisionsBlank += ids("blank").size
+          revisionsDel += ids("suppressed").size
+          for (revid: Int <- ids("ids")) {
 
             val fileName = file + revid + ".wikitext"
             val revisionFile = new File(fileName)
@@ -81,7 +81,7 @@ class Revisions(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitext
               if (wikitext == "") {
                 // We change the parent revision of the parent revision with the revision which is the parent revision of the current revision... Gniark gniark
                 var revidToCompareWith = 0
-                for (revId2 <- revision.getIds().apply("ids")) {
+                for (revId2 <- revision.getIds()("ids")) {
                   if (revision.getParentId(revId2) == revid) {
                     db.deleteRevision(revid)
                     db.updateRevisionParentId(revId2, parentId)

@@ -54,6 +54,10 @@ object Launcher extends App {
 
   val revisionsResult = revisions.compute(pages)
 
+  revisionsResult.onFailure {
+    case _ => revisions_logger.info("proccess failed")
+  }
+
   revisionsResult.onSuccess {
     case results => {
 
@@ -64,29 +68,43 @@ object Launcher extends App {
       val revisionsUndo = results.map(_.undoRevs).sum
       val revisionsBlank = results.map(_.blankRevs).sum
 
-      logger.info("Nb. total pages: " + pages.size)
-      //        logger.info("Nb. pages done: " + pagesDone)
-      logger.info("Nb. revisions size: " + revisionsSize)
-      logger.info("Nb. revisions done: " + revisionsDone)
-      logger.info("Nb. new revisions: " + revisionsNew)
-      logger.info("Nb. revisions suppressed: " + revisionsDel)
-      logger.info("Nb. undo revisions: " + revisionsUndo)
-      logger.info("Nb. blank revisions: " + revisionsBlank)
-      logger.debug("Waiting for database threads to terminate...")
+      revisions_logger.info("Nb. total pages: " + pages.size)
+      //        revisions_logger.info("Nb. pages done: " + pagesDone)
+      revisions_logger.info("Nb. revisions size: " + revisionsSize)
+      revisions_logger.info("Nb. revisions done: " + revisionsDone)
+      revisions_logger.info("Nb. new revisions: " + revisionsNew)
+      revisions_logger.info("Nb. revisions suppressed: " + revisionsDel)
+      revisions_logger.info("Nb. undo revisions: " + revisionsUndo)
+      revisions_logger.info("Nb. blank revisions: " + revisionsBlank)
+      revisions_logger.debug("Waiting for database threads to terminate...")
       while (db.isBusy()) {}
       val dbRevisions = db.browseRevisions()
       database_logger.info("Nb. pages: " + dbRevisions.groupBy(line => line.apply("title")).toList.size)
       database_logger.info("Nb. revisions: " + dbRevisions.size)
-      logger.info("process finished.")
+      revisions_logger.info("process finished.")
 
 
-      //  metrics.compute()
+      val metricsResult = metrics.compute()
+
+      metricsResult.onFailure {
+        case _ => metrics_logger.info("proccess failed")
+      }
+
+      metricsResult.onSuccess {
+        case results =>
+          metrics_logger.info("All threads started, waiting to finish...")
+          metrics_logger.info("Nb. revisions done (estimation): " + results.sum)
+          metrics_logger.info("Waiting for database threads to terminate...")
+          while (db.isBusy()) {}
+          val done = db.browseMetrics()
+          metrics_logger.info("Nb. comparisons done: " + done.size)
+          metrics_logger.info("process finished.")
+      }
+
     }
   }
 
-  revisionsResult.onFailure {
-    case _ => logger.info("proccess failed")
-  }
+
 
 
 
