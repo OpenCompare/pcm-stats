@@ -136,20 +136,21 @@ object Launcher extends App {
 
   def minePCMs(): Unit = {
 
-    db.browseRevisions().foreach(page => {
+    db.browseRevisions().foreach(revision => {
 
-      val pageLang = page.get("lang").get.asInstanceOf[String]
-      val pageTitle = page.get("title").get.asInstanceOf[String]
+      val pageId = revision.get("id").get.asInstanceOf[Int]
+      val pageLang = revision.get("lang").get.asInstanceOf[String]
+      val pageTitle = revision.get("title").get.asInstanceOf[String]
 
-      val wikitextFilePath = outputPath + pageTitle.replace("'", "") + "/"
+      val globalPath = outputPath + pageTitle.replace("'", "") + "/"
+      val wikitextFilePath = globalPath + pageId + ".wikitext"
       val wikitext = Source.fromFile(wikitextFilePath).mkString
-      mining_logger.info(pageTitle)
       val pcmContainers = wikiLoader.mine(pageLang, wikitext, pageTitle).toList
 
       for ((pcmContainer, index) <- pcmContainers.zipWithIndex) {
-        val kmfFileName = wikitextFilePath.substring(0, wikitextFilePath.size - ".wikitext".size) + index + ".json"
+        val pcmFilePath = globalPath + pageId + "_" + index + ".json"
         val kmfPCM = kmfExporter.export(pcmContainer)
-        val kmfWriter = new FileWriter(new File(kmfFileName))
+        val kmfWriter = new FileWriter(new File(pcmFilePath))
         kmfWriter.write(kmfPCM)
         kmfWriter.close()
       }
