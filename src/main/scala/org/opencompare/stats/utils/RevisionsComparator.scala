@@ -1,8 +1,11 @@
 package org.opencompare.stats.utils
 
+import java.io.File
+
 import org.apache.log4j.{FileAppender, Level, Logger}
 import org.joda.time.DateTime
 import org.opencompare.api.java.impl.PCMFactoryImpl
+import org.opencompare.api.java.impl.io.KMFJSONLoader
 import org.opencompare.api.java.util.ComplexePCMElementComparator
 import org.opencompare.api.java.{PCM, PCMContainer}
 import org.opencompare.io.wikipedia.io.{MediaWikiAPI, WikiTextLoader}
@@ -25,6 +28,8 @@ class RevisionsComparator(db : DatabaseSqlite, api: MediaWikiAPI, wikitextPath: 
   logger.addAppender(appender)
   logger.setLevel(level)
   private val wikiLoader = new WikiTextLoader(new WikiTextKeepTemplateProcessor(api))
+  private val kmfLoader = new KMFJSONLoader()
+
   var metrics: ListBuffer[Map[String, Any]] = ListBuffer.empty
 
   def getMetrics(): List[Map[String, Any]] = {
@@ -38,24 +43,23 @@ class RevisionsComparator(db : DatabaseSqlite, api: MediaWikiAPI, wikitextPath: 
   def compare(title: String, revisions: List[Map[String, Any]]): Map[String, Int] = {
     metrics = ListBuffer.empty
     var revisionsDone = 0
-    var revisionsSize = revisions.size
+    val revisionsSize = revisions.size
     var oldestPcm: PCM = null
     var newestPcm: PCM = null
 
     // Group by revision id to spare some miner access
     revisions.sortBy(revision => revision.apply("id").asInstanceOf[Int]).reverse.foreach(revision => {
 
-      val newestId = revision.get("id").get.asInstanceOf[Int]
-      val oldestId = revision.get("parentId").get.asInstanceOf[Int]
-      val lang = revision.get("lang").get.toString
-      val date = revision.get("date").get.toString
+      val newestId = revision("id").asInstanceOf[Int]
+      val oldestId = revision("parentId").asInstanceOf[Int]
+      val lang = revision("lang").toString
+      val date = revision("date").toString
 
-      // Get the current wikitext code
-      val newestWikifile = Source.fromFile(wikitextPath + title + "/" + newestId + ".wikitext")
-      val newestWikitext = newestWikifile.mkString
-      newestWikifile.close()
 
-      val newestContainers = wikiLoader.mine(lang, newestWikitext, title).toList
+
+      // Get the current PCMs
+      val newestContainers = readPCMContainers(wikitextPath + title + "/" + newestId)
+
 
       // Get containers size
       val newestContainersSize = newestContainers.size
@@ -66,13 +70,9 @@ class RevisionsComparator(db : DatabaseSqlite, api: MediaWikiAPI, wikitextPath: 
           throw new NoParentException()
         }
 
-        // Get the parent wikitext code
-        val oldestWikifile = Source.fromFile(wikitextPath + title + "/" + oldestId + ".wikitext")
-        val oldestWikitext = oldestWikifile.mkString
-        oldestWikifile.close()
+        // Get the parent PCMs
+        val oldestContainers = readPCMContainers(wikitextPath + title + "/" + oldestId)
 
-        // Then parse wikitext with the wikipedia miner
-        val oldestContainers = wikiLoader.mine(lang, oldestWikitext, title).toList
         // Get parent containers size
         val oldestContainersSize = oldestContainers.size
 
@@ -108,6 +108,7 @@ class RevisionsComparator(db : DatabaseSqlite, api: MediaWikiAPI, wikitextPath: 
             //    oldestContainer = Option[PCMContainer](oldestContainers.get(newestContainerIndex))
             //  }
             //}
+
             if (oldestContainer.isDefined) {
               oldestPcm = oldestContainer.get.getPcm
               addMetric(title, newestId, oldestId, newestPcm, oldestPcm, DateTime.parse(date), newestContainersSize, oldestContainersSize)
@@ -118,6 +119,7 @@ class RevisionsComparator(db : DatabaseSqlite, api: MediaWikiAPI, wikitextPath: 
               addMetric(title, newestId, oldestId, newestPcm, pcm, DateTime.parse(date), newestContainersSize, oldestContainersSize)
               //logger.warn(newestPcm.getName + " -- " + newestId + " -- referenced matrix not found in revision " + oldestId)
             }
+
           } else {
             val factory = new PCMFactoryImpl
             val pcm = factory.createPCM()
@@ -125,6 +127,7 @@ class RevisionsComparator(db : DatabaseSqlite, api: MediaWikiAPI, wikitextPath: 
             //logger.debug(title + " -- " + newestId + " -- page with a new matrix")
           }
         }
+
         revisionsDone += 1
       } catch {
         case e: NoParentException => {
@@ -179,4 +182,22 @@ class RevisionsComparator(db : DatabaseSqlite, api: MediaWikiAPI, wikitextPath: 
     }
   }
 
+
+  private def readPCMContainers(path : String): List[PCMContainer] = {
+
+    var index = 0
+    var pcmContainerFile = new File(path + "_" + index + ".json")
+
+    val allPCMContainers = ListBuffer.empty[PCMContainer]
+
+    while (pcmContainerFile.exists()) {
+      val pcmContainers = kmfLoader.load(pcmContainerFile)
+      allPCMContainers ++= pcmContainers
+
+      index += 1
+      pcmContainerFile = new File(path + "_" + index + ".json")
+    }
+
+    allPCMContainers.toList
+  }
 }

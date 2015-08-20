@@ -1,17 +1,19 @@
 package org.opencompare.stats
 
-import java.io.File
+import java.io.{FileWriter, File}
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 import com.github.tototoshi.csv.CSVReader
 import org.apache.log4j.{FileAppender, Level, Logger}
-import org.opencompare.io.wikipedia.io.MediaWikiAPI
+import org.opencompare.api.java.impl.io.KMFJSONExporter
+import org.opencompare.io.wikipedia.io.{WikiTextLoader, MediaWikiAPI}
 import org.opencompare.stats.processes.{Revisions, Metrics}
-import org.opencompare.stats.utils.{CustomCsvFormat, CustomLoggerLayout, DatabaseSqlite}
+import org.opencompare.stats.utils.{WikiTextKeepTemplateProcessor, CustomCsvFormat, CustomLoggerLayout, DatabaseSqlite}
 
 import scala.concurrent._
 import ExecutionContext.Implicits.global
+import scala.collection.JavaConversions._
 
 /**
  * Created by smangin on 03/08/15.
@@ -41,6 +43,9 @@ object Launcher extends App {
 
   // Parser
   val api = new MediaWikiAPI("https", "wikipedia.org")
+  val wikiLoader = new WikiTextLoader(new WikiTextKeepTemplateProcessor(api))
+  val kmfExporter = new KMFJSONExporter()
+
   // Database
   val db = new DatabaseSqlite(path + "metrics.db").initialize()
 
@@ -93,7 +98,8 @@ object Launcher extends App {
         revisions_logger.info("process finished.")
 
 
-        computeMetrics() // TODO
+        minePCMs()
+        computeMetrics()
 
       }
     }
@@ -122,6 +128,32 @@ object Launcher extends App {
     }
   }
 
+
+  def minePCMs(): Unit = {
+
+    val topDir = new File(wikitextPath)
+
+    for (dir <- topDir.listFiles().filter(_.isDirectory)) {
+      for (wikitextFile <- dir.listFiles().filter(_.getName.endsWith(".wikitext"))) {
+
+        val wikitext = "" // TODO
+        val pageLang = "en" // TODO
+        val pageTitle = "" // TODO
+
+        val pcmContainers = wikiLoader.mine(pageLang, wikitext, pageTitle).toList
+        for ((pcmContainer, index) <- pcmContainers.zipWithIndex) {
+          val wikitextFilePath = wikitextFile.getAbsolutePath
+          val kmfFileName =  wikitextFilePath.substring(0, wikitextFilePath.size - ".wikitext".size) + index + ".json"
+          val kmfPCM = kmfExporter.export(pcmContainer)
+          val kmfWriter = new FileWriter(new File(kmfFileName))
+          kmfWriter.write(kmfPCM)
+          kmfWriter.close()
+        }
+      }
+    }
+
+
+  }
 
 }
 

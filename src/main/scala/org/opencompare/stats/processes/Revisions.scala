@@ -1,27 +1,29 @@
 package org.opencompare.stats.processes
 
 import java.io.{File, FileWriter}
+import java.util.concurrent.Executors
 
 import com.github.tototoshi.csv.CSVReader
 import org.apache.log4j.{FileAppender, Level, Logger}
 import org.joda.time.DateTime
-import org.opencompare.io.wikipedia.io.MediaWikiAPI
-import org.opencompare.stats.utils.{CustomCsvFormat, DatabaseSqlite, RevisionsParser}
+import org.opencompare.api.java.impl.io.KMFJSONExporter
+import org.opencompare.io.wikipedia.io.{WikiTextExporter, WikiTextLoader, MediaWikiAPI}
+import org.opencompare.stats.utils.{WikiTextKeepTemplateProcessor, CustomCsvFormat, DatabaseSqlite, RevisionsParser}
 
 import scala.concurrent._
-import ExecutionContext.Implicits.global
 
 /**
  * Created by smangin on 23/07/15.
  */
 class Revisions(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitextPath : String, appender : FileAppender, level : Level) {
 
+  // Execution context
+  implicit val executionContext = ExecutionContext.fromExecutor(Executors.newCachedThreadPool())
 
   // Logging
   private val logger = Logger.getLogger("revisions")
   logger.addAppender(appender)
   logger.setLevel(level)
-
 
   def compute(pages : List[Map[String, String]]) : Future[List[PageStats]] = {
     logger.info("Started...")
@@ -112,7 +114,7 @@ class Revisions(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitext
           } catch {
             case e: Exception => {
               logger.error(pageTitle + " => " + e.getLocalizedMessage)
-              logger.error(e.getStackTrace)
+              logger.error(e.getMessage, e)
             }
           }
 
