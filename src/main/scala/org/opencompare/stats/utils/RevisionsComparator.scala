@@ -19,7 +19,7 @@ import scala.io.Source
  * Compare each revisions with the closiest oldest one.
  *
  */
-class RevisionsComparator(db : DatabaseSqlite, api: MediaWikiAPI, wikitextPath: String, pcmPath: String, appender: FileAppender, level: Level) extends Thread {
+class RevisionsComparator(db : DatabaseSqlite, api: MediaWikiAPI, wikitextPath: String, pcmPath: String, appender: FileAppender, level: Level) {
 
   private val logger = Logger.getLogger("metrics.comparator")
   logger.addAppender(appender)

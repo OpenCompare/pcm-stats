@@ -33,7 +33,7 @@ matrices$year <- as.numeric(matrices$year)
 revisions$year <- as.numeric(revisions$year)
 
 # Start PNG device driver to save output
-png(filename="metrics_log.png", height=1200, width=1000, bg="white")
+#png(filename="metrics_log.png", height=1200, width=1000, bg="white")
 
 # Define colors to be used
 plot_colors <- c("green", "red", "deepskyblue", "orange", "violet", "black", "blue")
@@ -78,4 +78,4 @@ title(xlab= "Date (years)", ylab= "Quantity (units)")
 legend("bottomright", column_names, cex=1, col=plot_colors, pch=17:23)
 
 # Turn off device driver (to flush output to png)
-dev.off()
+#dev.off()

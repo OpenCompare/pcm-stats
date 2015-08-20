@@ -119,21 +119,12 @@ class RevisionsParser (api : MediaWikiAPI, lang : String, title : String, direct
   }
 
   def getParentId(revid: Int): Int = {
-    var parentId = 0
     val revision = getRevision(revid)
     if (revision.isDefined) {
-      parentId = (revision.get \ "parentid").as[JsNumber].value.toIntExact
-      if (isSuppressed(revid)) {
-        parentId = getParentId(ids.find(id => (id == parentId)).get)
-      }
-      if (isUndo(revid)) {
-        parentId = getParentId(ids.find(id => (id == parentId)).get)
-      }
-      if (isBlank(parentId)) {
-        parentId = getParentId(parentId)
-      }
+      (revision.get \ "parentid").as[JsNumber].value.toIntExact
+    } else {
+      0
     }
-    parentId
   }
 
   def getAuthor(revid: Int): String = {

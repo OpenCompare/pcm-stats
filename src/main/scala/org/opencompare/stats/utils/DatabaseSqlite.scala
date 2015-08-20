@@ -121,6 +121,10 @@ class DatabaseSqlite(path : String) extends DatabaseInterface {
     queue.isStopped
   }
 
+  def stopDB(): Unit = {
+    queue.stop(true).join()
+  }
+
   def revisionExists(id: Int): Boolean = {
     val job = new SQLiteJob[Boolean]() {
       protected def job(connection : SQLiteConnection): Boolean = {
