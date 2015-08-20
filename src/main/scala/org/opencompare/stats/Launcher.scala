@@ -26,8 +26,7 @@ object Launcher extends App {
   val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
   // Paths
   val path = "metrics/"
-  val wikitextPath = path + "wikitext/"
-  val pcmPath = path + "pcm/"
+  val outputPath = path + "code/"
   // Logger
   val level = Level.ALL
   val logger = Logger.getLogger("launcher")
@@ -36,6 +35,8 @@ object Launcher extends App {
   logger.setLevel(level)
   val revisions_logger = Logger.getLogger("revisions")
   revisions_logger.addAppender(fh)
+  val mining_logger = Logger.getLogger("mining")
+  mining_logger.addAppender(fh)
   val metrics_logger = Logger.getLogger("metrics")
   metrics_logger.addAppender(fh)
 
@@ -50,8 +51,8 @@ object Launcher extends App {
   // Database
   val db = new DatabaseSqlite(path + "metrics.db").initialize()
 
-  val revisions = new Revisions(api, db, cTime.format(formatter), wikitextPath, fh, level)
-  val metrics = new Metrics(api, db, cTime.format(formatter), wikitextPath, pcmPath, fh, level)
+  val revisions = new Revisions(api, db, cTime.format(formatter), outputPath, fh, level)
+  val metrics = new Metrics(api, db, cTime.format(formatter), outputPath, fh, level)
 
   val inputPageList = new File("src/main/resources/list_of_PCMs.csv")
   val reader = CSVReader.open(inputPageList)(new CustomCsvFormat)
@@ -135,32 +136,24 @@ object Launcher extends App {
 
   def minePCMs(): Unit = {
 
-    val topDir = new File(wikitextPath)
+    db.browseRevisions().foreach(page => {
 
-    for (dir <- topDir.listFiles().filter(_.isDirectory)) {
-      for (wikitextFile <- dir.listFiles().filter(_.getName.endsWith(".wikitext"))) {
+      val pageLang = page.get("lang").get.asInstanceOf[String]
+      val pageTitle = page.get("title").get.asInstanceOf[String]
 
-        val wikitext = Source.fromFile(wikitextFile).mkString
-        val pageLang = "en" // TODO
-        val pageTitle = "" // TODO
+      val wikitextFilePath = outputPath + pageTitle.replace("'", "") + "/"
+      val wikitext = Source.fromFile(wikitextFilePath).mkString
+      mining_logger.info(pageTitle)
+      val pcmContainers = wikiLoader.mine(pageLang, wikitext, pageTitle).toList
 
-        logger.info("mining PCMs : " + wikitextFile.getName)
-        val pcmContainers = wikiLoader.mine(pageLang, wikitext, pageTitle).toList
-
-
-        for ((pcmContainer, index) <- pcmContainers.zipWithIndex) {
-          val wikitextFilePath = wikitextFile.getAbsolutePath
-          val kmfFileName =  wikitextFilePath.substring(0, wikitextFilePath.size - ".wikitext".size) + index + ".json"
-          val kmfPCM = kmfExporter.export(pcmContainer)
-          val kmfWriter = new FileWriter(new File(kmfFileName))
-          kmfWriter.write(kmfPCM)
-          kmfWriter.close()
-        }
+      for ((pcmContainer, index) <- pcmContainers.zipWithIndex) {
+        val kmfFileName = wikitextFilePath.substring(0, wikitextFilePath.size - ".wikitext".size) + index + ".json"
+        val kmfPCM = kmfExporter.export(pcmContainer)
+        val kmfWriter = new FileWriter(new File(kmfFileName))
+        kmfWriter.write(kmfPCM)
+        kmfWriter.close()
       }
-    }
-
-
+    })
   }
-
 }
 

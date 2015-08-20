@@ -3,19 +3,17 @@ package org.opencompare.stats.processes
 import java.io.{File, FileWriter}
 import java.util.concurrent.Executors
 
-import com.github.tototoshi.csv.CSVReader
 import org.apache.log4j.{FileAppender, Level, Logger}
 import org.joda.time.DateTime
-import org.opencompare.api.java.impl.io.KMFJSONExporter
-import org.opencompare.io.wikipedia.io.{WikiTextExporter, WikiTextLoader, MediaWikiAPI}
-import org.opencompare.stats.utils.{WikiTextKeepTemplateProcessor, CustomCsvFormat, DatabaseSqlite, RevisionsParser}
+import org.opencompare.io.wikipedia.io.MediaWikiAPI
+import org.opencompare.stats.utils._
 
 import scala.concurrent._
 
 /**
  * Created by smangin on 23/07/15.
  */
-class Revisions(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitextPath : String, appender : FileAppender, level : Level) {
+class Revisions(api : MediaWikiAPI, db : DatabaseSqlite, time : String, path : String, appender : FileAppender, level : Level) {
 
   // Execution context
   implicit val executionContext = ExecutionContext.fromExecutor(Executors.newCachedThreadPool())
@@ -27,7 +25,6 @@ class Revisions(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitext
 
   def compute(pages : List[Map[String, String]]) : Future[List[PageStats]] = {
     logger.info("Started...")
-
 
     val tasks = for (page <- pages) yield {
       Future {
@@ -49,12 +46,13 @@ class Revisions(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitext
           val pageLang = pageLangOption.get
           val pageTitle = pageTitleOption.get
 
-          val file = wikitextPath + pageTitle.replace("'", "") + "/"
+          val file = path + pageTitle.replace("'", "") + "/"
           new File(file).mkdirs()
           try {
 
             val revision = new RevisionsParser(api, pageLang, pageTitle, "older")
             val ids = revision.getIds(true, true)
+            val idsFull = revision.getIds()("ids")
 
             revisionsSize += ids("ids").size
             revisionsUndo += ids("undo").size
@@ -100,7 +98,6 @@ class Revisions(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitext
                       db.deleteRevision(revid)
                       db.updateRevisionParentId(revId2, parentId)
                       revisionsBlank += 1
-                      println("blank")
                     }
                   }
                 } else {
@@ -111,13 +108,13 @@ class Revisions(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitext
               }
 
             }
+            logger.info("[" + ids("ids").size + "/" + idsFull.size + " rev." + "]\t" + pageTitle)
           } catch {
             case e: Exception => {
               logger.error(pageTitle + " => " + e.getLocalizedMessage)
               logger.error(e.getMessage, e)
             }
           }
-
           PageStats(revisionsDone, revisionsSize, revisionsUndo, revisionsBlank, revisionsNew, revisionsDel)
         } else {
           PageStats(0, 0, 0, 0, 0, 0)

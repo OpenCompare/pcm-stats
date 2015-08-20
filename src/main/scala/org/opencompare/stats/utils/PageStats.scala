@@ -1,4 +1,4 @@
-package org.opencompare.stats.processes
+package org.opencompare.stats.utils
 
 /**
  * Created by gbecan on 8/20/15.
