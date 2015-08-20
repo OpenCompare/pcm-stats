@@ -19,7 +19,7 @@ metrics <- fetch(res, n=-1) # Get all results, not limited to 500
 res <- dbSendQuery(con, "SELECT year, SUM(nm) as nm FROM (
     SELECT strftime('%Y', m.date) AS year, MAX(m.nbMatrices) as nm
     FROM metrics m JOIN revisions r ON m.id = r.id
-    GROUP BY r.title, year)
+    GROUP BY year, r.title)
 GROUP BY year")
 matrices <- fetch(res, n=-1)
 
@@ -36,7 +36,7 @@ revisions$year <- as.numeric(revisions$year)
 png(filename="metrics_log.png", height=1200, width=1000, bg="white")
 
 # Define colors to be used
-plot_colors <- c("green", "red", "blue", "orange", "brown", "black", "deepskyblue")
+plot_colors <- c("green", "red", "deepskyblue", "orange", "violet", "black", "blue")
 
 # get the range for the x and y axis
 daterange <- range(revisions$year, matrices$year, metrics$year)
@@ -44,7 +44,7 @@ ymax <- max(metrics$np, metrics$dp, metrics$nf, metrics$df, matrices$nm, metrics
 
 # Define ticks and names
 xticks = seq(daterange[1], daterange[2], 1)
-yticks = c(1, 2, 5, 10, 30, 100, 300, 1000, 3000, 10000, 30000, 50000, 100000, 150000, 200000)
+yticks = c(1, 2, 5, 10, 30, 100, 300, 1000, 3000, 10000, 30000, 80000, 200000, 350000, 600000, 1000000)
 lablist.x <- as.vector(xticks)
 lablist.y <- as.vector(yticks)
 column_names <- c("New products", "Deleted products", "New features", "Deleted features", "Changed cells", "Matrices", "Revisions")
@@ -65,8 +65,8 @@ lines(metrics$dp ~ metrics$year, type="o", col=plot_colors[2], pch=18, lty="dott
 lines(metrics$nf ~ metrics$year, type="o", col=plot_colors[3], pch=19, lty="dotted", lwd = 2)
 lines(metrics$df ~ metrics$year, type="o", col=plot_colors[4], pch=20, lty="dotted", lwd = 2)
 lines(metrics$cc ~ metrics$year, type="o", col=plot_colors[5], pch=21, lty="dotted", lwd = 2)
-lines(revisions$number ~ revisions$year, type="o", col=plot_colors[6], pch=15, lty="longdash", lwd = 2)
-lines(matrices$nm ~ matrices$year, type="o", col=plot_colors[7], pch=16, lty="longdash", lwd = 2)
+lines(matrices$nm ~ matrices$year, type="o", col=plot_colors[6], pch=22, lty="solid", lwd = 2)
+lines(revisions$number ~ revisions$year, type="o", col=plot_colors[7], pch=23, lty="solid", lwd = 2)
 
 # add a title and subtitle
 title("Wikipedia matrices evolution", "Full metrics (logarithmic scale)")
@@ -75,7 +75,7 @@ title("Wikipedia matrices evolution", "Full metrics (logarithmic scale)")
 title(xlab= "Date (years)", ylab= "Quantity (units)")
 
 # add a legend
-legend("bottomright", column_names, cex=1, col=plot_colors, pch=15:21)
+legend("bottomright", column_names, cex=1, col=plot_colors, pch=17:23)
 
 # Turn off device driver (to flush output to png)
 dev.off()
