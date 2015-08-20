@@ -14,6 +14,7 @@ import org.opencompare.stats.utils.{WikiTextKeepTemplateProcessor, CustomCsvForm
 import scala.concurrent._
 import ExecutionContext.Implicits.global
 import scala.collection.JavaConversions._
+import scala.io.Source
 
 /**
  * Created by smangin on 03/08/15.
@@ -98,7 +99,10 @@ object Launcher extends App {
         revisions_logger.info("process finished.")
 
 
+        logger.info("mining PCMs")
         minePCMs()
+
+        logger.info("computing metrics")
         computeMetrics()
 
       }
@@ -136,11 +140,14 @@ object Launcher extends App {
     for (dir <- topDir.listFiles().filter(_.isDirectory)) {
       for (wikitextFile <- dir.listFiles().filter(_.getName.endsWith(".wikitext"))) {
 
-        val wikitext = "" // TODO
+        val wikitext = Source.fromFile(wikitextFile).mkString
         val pageLang = "en" // TODO
         val pageTitle = "" // TODO
 
+        logger.info("mining PCMs : " + wikitextFile.getName)
         val pcmContainers = wikiLoader.mine(pageLang, wikitext, pageTitle).toList
+
+
         for ((pcmContainer, index) <- pcmContainers.zipWithIndex) {
           val wikitextFilePath = wikitextFile.getAbsolutePath
           val kmfFileName =  wikitextFilePath.substring(0, wikitextFilePath.size - ".wikitext".size) + index + ".json"
