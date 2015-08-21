@@ -10,7 +10,7 @@ import ExecutionContext.Implicits.global
 /**
  * Created by smangin on 23/07/15.
  */
-class Metrics(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitextPath : String, pcmPath : String, appender : FileAppender, level : Level) {
+class Metrics(api : MediaWikiAPI, db : DatabaseSqlite, time : String, path : String, appender : FileAppender, level : Level) {
 
 
   // Logging
@@ -39,7 +39,7 @@ class Metrics(api : MediaWikiAPI, db : DatabaseSqlite, time : String, wikitextPa
       Future {
         val title = page._1.toString
         val content = page._2
-        val comparator = new RevisionsComparator(db, api, wikitextPath, pcmPath, appender, level)
+        val comparator = new RevisionsComparator(db, api, path, appender, level)
 
         val result: Map[String, Int] = comparator.compare(title, content)
         comparator.getMetrics().foreach(line => {

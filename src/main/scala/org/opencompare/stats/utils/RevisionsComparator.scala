@@ -13,7 +13,6 @@ import org.opencompare.stats.exceptions.NoParentException
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable.ListBuffer
-import scala.io.Source
 
 /**
  * Created by smangin on 30/07/15.
@@ -22,7 +21,7 @@ import scala.io.Source
  * Compare each revisions with the closiest oldest one.
  *
  */
-class RevisionsComparator(db : DatabaseSqlite, api: MediaWikiAPI, wikitextPath: String, pcmPath: String, appender: FileAppender, level: Level) {
+class RevisionsComparator(db : DatabaseSqlite, api: MediaWikiAPI, path: String, appender: FileAppender, level: Level) {
 
   private val logger = Logger.getLogger("metrics.comparator")
   logger.addAppender(appender)
@@ -58,7 +57,7 @@ class RevisionsComparator(db : DatabaseSqlite, api: MediaWikiAPI, wikitextPath: 
 
 
       // Get the current PCMs
-      val newestContainers = readPCMContainers(wikitextPath + title + "/" + newestId)
+      val newestContainers = readPCMContainers(path + title + "/" + newestId)
 
 
       // Get containers size
@@ -71,7 +70,7 @@ class RevisionsComparator(db : DatabaseSqlite, api: MediaWikiAPI, wikitextPath: 
         }
 
         // Get the parent PCMs
-        val oldestContainers = readPCMContainers(wikitextPath + title + "/" + oldestId)
+        val oldestContainers = readPCMContainers(path + title + "/" + oldestId)
 
         // Get parent containers size
         val oldestContainersSize = oldestContainers.size
