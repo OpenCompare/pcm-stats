@@ -55,7 +55,8 @@ class DatabaseSqlite(path : String) extends DatabaseInterface {
       protected def job(connection : SQLiteConnection): Unit = {
         // this method is called from database thread and passes the connection
         connection.exec("CREATE TABLE IF NOT EXISTS revisions (" + revisionModel.mkString(", ") + ")")
-        connection.exec("CREATE TABLE IF NOT EXISTS metrics (" + metricModel.mkString(", ") + ")")
+        connection.exec("DROP TABLE metrics")
+        connection.exec("CREATE TABLE metrics (" + metricModel.mkString(", ") + ")")
       }
     }
     queue.execute[Unit, SQLiteJob[Unit]](job)

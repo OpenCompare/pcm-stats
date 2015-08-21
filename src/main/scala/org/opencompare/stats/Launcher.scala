@@ -149,10 +149,12 @@ object Launcher extends App {
 
       for ((pcmContainer, index) <- pcmContainers.zipWithIndex) {
         val pcmFilePath = globalPath + pageId + "_" + index + ".json"
-        val kmfPCM = kmfExporter.export(pcmContainer)
-        val kmfWriter = new FileWriter(new File(pcmFilePath))
-        kmfWriter.write(kmfPCM)
-        kmfWriter.close()
+        if (!new File(pcmFilePath).exists()) {
+          val kmfPCM = kmfExporter.export(pcmContainer)
+          val kmfWriter = new FileWriter(new File(pcmFilePath))
+          kmfWriter.write(kmfPCM)
+          kmfWriter.close()
+        }
       }
     })
   }
