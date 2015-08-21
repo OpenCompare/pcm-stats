@@ -138,9 +138,9 @@ object Launcher extends App {
 
     db.browseRevisions().foreach(revision => {
 
-      val pageId = revision.get("id").get.asInstanceOf[Int]
-      val pageLang = revision.get("lang").get.asInstanceOf[String]
-      val pageTitle = revision.get("title").get.asInstanceOf[String]
+      val pageId = revision("id").asInstanceOf[Int]
+      val pageLang = revision("lang").asInstanceOf[String]
+      val pageTitle = revision("title").asInstanceOf[String]
 
       val globalPath = outputPath + pageTitle.replace("'", "") + "/"
       val wikitextFilePath = globalPath + pageId + ".wikitext"
