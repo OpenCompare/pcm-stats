@@ -67,6 +67,13 @@
             <artifactId>sqlite4java</artifactId>
             <version>${sqlite4java.version}</version>
         </dependency>
+
+        <dependency>
+            <groupId>org.scalesxml</groupId>
+            <artifactId>scales-xml_2.11</artifactId>
+            <version>0.6.0-M3</version>
+        </dependency>
+
     </dependencies>
     <build>
         <plugins>
