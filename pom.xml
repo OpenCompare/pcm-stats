@@ -68,6 +68,12 @@
             <version>${sqlite4java.version}</version>
         </dependency>
 
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-compress</artifactId>
+            <version>1.10</version>
+        </dependency>
+
     </dependencies>
     <build>
         <plugins>
