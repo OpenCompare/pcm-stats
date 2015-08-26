@@ -26,7 +26,8 @@ object WikipediaDumpProcessing extends App {
   //  val dumpFile = new File("wikipedia-dump/zuwiki-20150806-pages-meta-history.xml")
 
 //  val compressedDumpFile = new File("wikipedia-dump/zuwiki-20150806-pages-articles-multistream.xml.bz2")
-  val compressedDumpFile = new File("/var/wikipedia-dumps/20150805/fr/frwiki-20150602-pages-articles-multistream.xml.bz2")
+//  val compressedDumpFile = new File("/var/wikipedia-dumps/20150805/fr/frwiki-20150602-pages-articles-multistream.xml.bz2")
+  val compressedDumpFile = new File("/var/wikipedia-dumps/20150805/en/enwiki-20150805-pages-articles-multistream.xml.bz2")
 
   val outputDir = new File(dumpFile.getAbsolutePath.substring(0, dumpFile.getAbsolutePath.size - ".xml".size))
 
