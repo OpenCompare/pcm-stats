@@ -2,6 +2,8 @@ package org.opencompare.stats
 
 import java.io.{FileWriter, File}
 
+import org.opencompare.io.wikipedia.io.{MediaWikiAPI, WikiTextLoader}
+import org.opencompare.stats.utils.WikiTextKeepTemplateProcessor
 import org.xml.sax.SAXParseException
 
 import scala.io.Source
@@ -23,7 +25,10 @@ object WikipediaDumpProcessing extends App {
 //  val processor = new WikipediaDumpProcessor
 //  processor.cutDump(dumpFile, outputDir)
 
-  // Read extracted XML files and detect tables
+  // Read extracted XML files, detect tables and extract PCMs
+
+  val api = new MediaWikiAPI("wikipedia.org")
+  val pcmMiner = new WikiTextLoader(new WikiTextKeepTemplateProcessor(api))
 
   for (pageDir <- outputDir.listFiles() if pageDir.isDirectory) {
     for (revisionFile <- pageDir.listFiles() if revisionFile.isFile && revisionFile.getName.endsWith(".xml")) {
@@ -33,7 +38,8 @@ object WikipediaDumpProcessing extends App {
       val containsTable = revContent.contains("{|")
 
       if (containsTable) {
-        println(revisionFile)
+        val pcmContainers = pcmMiner.load(revContent)
+        println(pcmContainers.size())
       }
 
     }
